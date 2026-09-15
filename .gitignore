@@ -1,0 +1,31 @@
+# gradle
+.gradle/
+build/
+out/
+run/
+runs/
+repo/
+
+# ide
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+bin/
+eclipse/
+
+# neoforge / moddev
+.neoforge/
+
+# os
+*.DS_Store
+
+# local dependency jars are checked in intentionally (EE), keep them:
+!libs/*.jar
+
+# datagen hash cache
+src/generated/resources/.cache/

@@ -1,0 +1,38 @@
+modLoader="javafml"
+loaderVersion="[1,)"
+license="MIT"
+
+[[mods]]
+    modId="electroutilities"
+    version="1.21.1-0.1.0"
+    displayName="Create: Electro Utilities"
+    authors="Adam Schiavone"
+    description='''Utility poles, crossarms and substation poles for Create: Electro Energetics.'''
+
+[[dependencies.electroutilities]]
+    modId="neoforge"
+    type="required"
+    versionRange="[21.1.174,)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.electroutilities]]
+    modId="minecraft"
+    type="required"
+    versionRange="[1.21.1]"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.electroutilities]]
+    modId="create"
+    type="required"
+    versionRange="[6.0.7,6.1.0)"
+    ordering="AFTER"
+    side="BOTH"
+
+[[dependencies.electroutilities]]
+    modId="electroenergetics"
+    type="required"
+    versionRange="[1.21.1-1.2.0,)"
+    ordering="AFTER"
+    side="BOTH"

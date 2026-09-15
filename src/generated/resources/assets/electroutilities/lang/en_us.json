@@ -1,0 +1,15 @@
+{
+  "block.electroutilities.acacia_utility_pole": "Acacia Utility Pole",
+  "block.electroutilities.birch_utility_pole": "Birch Utility Pole",
+  "block.electroutilities.cherry_utility_pole": "Cherry Utility Pole",
+  "block.electroutilities.crimson_utility_pole": "Crimson Utility Pole",
+  "block.electroutilities.dark_oak_utility_pole": "Dark Oak Utility Pole",
+  "block.electroutilities.jungle_utility_pole": "Jungle Utility Pole",
+  "block.electroutilities.mangrove_utility_pole": "Mangrove Utility Pole",
+  "block.electroutilities.oak_utility_pole": "Oak Utility Pole",
+  "block.electroutilities.spruce_utility_pole": "Spruce Utility Pole",
+  "block.electroutilities.warped_utility_pole": "Warped Utility Pole",
+  "item.electroutilities.utility_pole_crossarm": "Utility Pole Crossarm",
+  "item.electroutilities.utility_pole_label": "Utility Pole Label",
+  "itemGroup.electroutilities": "Create: Electro Utilities"
+}

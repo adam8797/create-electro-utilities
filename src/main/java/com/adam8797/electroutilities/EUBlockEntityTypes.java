@@ -3,6 +3,8 @@ package com.adam8797.electroutilities;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.adam8797.electroutilities.content.substation.SubstationPoleBlockEntity;
+import com.adam8797.electroutilities.content.substation.SubstationPoleRenderer;
 import com.adam8797.electroutilities.content.utilitypole.UtilityPoleBlockEntity;
 import com.adam8797.electroutilities.content.utilitypole.UtilityPoleRenderer;
 import com.tterrag.registrate.util.entry.BlockEntityEntry;
@@ -22,10 +24,23 @@ public class EUBlockEntityTypes {
             .renderer(() -> UtilityPoleRenderer::new)
             .register();
 
+    public static final BlockEntityEntry<SubstationPoleBlockEntity> SUBSTATION_POLE = CreateElectroUtilities.REGISTRATE
+            .blockEntity("substation_pole", SubstationPoleBlockEntity::new)
+            .validBlocks(substationSuppliers())
+            .renderer(() -> SubstationPoleRenderer::new)
+            .register();
+
     @SuppressWarnings({ "unchecked", "rawtypes" })
     private static NonNullSupplier<? extends Block>[] poleSuppliers() {
         List<NonNullSupplier<? extends Block>> list = new ArrayList<>();
         EUBlocks.UTILITY_POLES.values().forEach(list::add);
+        return list.toArray(new NonNullSupplier[0]);
+    }
+
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    private static NonNullSupplier<? extends Block>[] substationSuppliers() {
+        List<NonNullSupplier<? extends Block>> list = new ArrayList<>();
+        EUBlocks.SUBSTATION_POLES.forEach(list::add);
         return list.toArray(new NonNullSupplier[0]);
     }
 

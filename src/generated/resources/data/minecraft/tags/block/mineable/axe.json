@@ -9,6 +9,16 @@
     "electroutilities:mangrove_utility_pole",
     "electroutilities:cherry_utility_pole",
     "electroutilities:crimson_utility_pole",
-    "electroutilities:warped_utility_pole"
+    "electroutilities:warped_utility_pole",
+    "electroutilities:oak_substation_pole",
+    "electroutilities:spruce_substation_pole",
+    "electroutilities:birch_substation_pole",
+    "electroutilities:jungle_substation_pole",
+    "electroutilities:acacia_substation_pole",
+    "electroutilities:dark_oak_substation_pole",
+    "electroutilities:mangrove_substation_pole",
+    "electroutilities:cherry_substation_pole",
+    "electroutilities:crimson_substation_pole",
+    "electroutilities:warped_substation_pole"
   ]
 }

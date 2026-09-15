@@ -27,6 +27,7 @@ public class EUCreativeTab {
                             output.accept(EUBlocks.UTILITY_POLES.get(wood).get());
                         output.accept(EUItems.CROSSARM.get());
                         output.accept(EUItems.UTILITY_POLE_LABEL.get());
+                        EUBlocks.SUBSTATION_POLES.forEach(pole -> output.accept(pole.get()));
                     })
                     .build());
 

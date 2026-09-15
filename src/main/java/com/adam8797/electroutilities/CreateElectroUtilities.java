@@ -1,7 +1,10 @@
 package com.adam8797.electroutilities;
 
+import com.adam8797.electroutilities.content.substation.SubstationPlacementHelper;
+import com.adam8797.electroutilities.content.substation.SubstationPoleBlock;
 import com.mojang.logging.LogUtils;
 import com.simibubi.create.foundation.data.CreateRegistrate;
+import net.createmod.catnip.placement.PlacementHelpers;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.CreativeModeTab;
@@ -36,6 +39,8 @@ public class CreateElectroUtilities {
         EUBlockEntityTypes.register();
         EUSimulatedDevices.register(modEventBus);
         EUCreativeTab.register(modEventBus);
+
+        SubstationPoleBlock.placementHelperId = PlacementHelpers.register(new SubstationPlacementHelper());
     }
 
     public static ResourceLocation rl(String path) {

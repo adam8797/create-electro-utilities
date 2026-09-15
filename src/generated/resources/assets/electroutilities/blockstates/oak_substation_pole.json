@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "axis=x": {
+      "model": "electroutilities:block/oak_substation_pole",
+      "x": 90,
+      "y": 90
+    },
+    "axis=y": {
+      "model": "electroutilities:block/oak_substation_pole"
+    },
+    "axis=z": {
+      "model": "electroutilities:block/oak_substation_pole",
+      "x": 90
+    }
+  }
+}

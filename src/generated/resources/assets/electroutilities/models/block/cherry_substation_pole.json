@@ -1,0 +1,8 @@
+{
+  "parent": "electroutilities:block/substation_pole_post",
+  "textures": {
+    "end": "minecraft:block/cherry_log_top",
+    "particle": "minecraft:block/cherry_log",
+    "side": "minecraft:block/cherry_log"
+  }
+}

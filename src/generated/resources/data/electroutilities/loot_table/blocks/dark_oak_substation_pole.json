@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:block",
+  "pools": [
+    {
+      "bonus_rolls": 0.0,
+      "conditions": [
+        {
+          "condition": "minecraft:survives_explosion"
+        }
+      ],
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "electroutilities:dark_oak_substation_pole"
+        }
+      ],
+      "rolls": 1.0
+    }
+  ],
+  "random_sequence": "electroutilities:blocks/dark_oak_substation_pole"
+}

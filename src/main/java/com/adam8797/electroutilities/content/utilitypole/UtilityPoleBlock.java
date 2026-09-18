@@ -17,6 +17,9 @@ import com.george_vi.electroenergetics.simulation.infrastructure.InWorldNodeData
 import com.george_vi.electroenergetics.simulation.infrastructure.InfrastructureSavedData;
 import com.simibubi.create.content.equipment.wrench.IWrenchable;
 
+import net.createmod.catnip.placement.IPlacementHelper;
+import net.createmod.catnip.placement.PlacementHelpers;
+import net.createmod.catnip.placement.PlacementOffset;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
@@ -28,6 +31,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -63,6 +67,9 @@ public class UtilityPoleBlock extends RotatedPillarBlock
         implements SimpleWaterloggedBlock, IWrenchable, EntityBlock, ElectricalDeviceBlock<UtilityPoleDevice> {
 
     public static final BooleanProperty WATERLOGGED = BlockStateProperties.WATERLOGGED;
+
+    /** Catnip placement-helper id, set once in {@link com.adam8797.electroutilities.CreateElectroUtilities}. */
+    public static int placementHelperId;
 
     private static final VoxelShape SHAPE_Y = box(4, 0, 4, 12, 16, 12);
     private static final VoxelShape SHAPE_X = box(0, 4, 4, 16, 12, 12);
@@ -142,6 +149,20 @@ public class UtilityPoleBlock extends RotatedPillarBlock
     @Override
     protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
                                               Player player, InteractionHand hand, BlockHitResult hit) {
+        // Shaft-style placement: using a utility pole item extends the column along its existing axis.
+        if (stack.getItem() instanceof BlockItem blockItem && blockItem.getBlock() instanceof UtilityPoleBlock) {
+            IPlacementHelper helper = PlacementHelpers.get(placementHelperId);
+            if (helper.matchesItem(stack)) {
+                PlacementOffset offset = helper.getOffset(player, level, state, pos, hit);
+                if (offset.isSuccessful()) {
+                    if (!level.isClientSide)
+                        offset.placeInWorld(level, blockItem, player, hand, hit);
+                    return ItemInteractionResult.sidedSuccess(level.isClientSide);
+                }
+            }
+            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        }
+
         if (!(level.getBlockEntity(pos) instanceof UtilityPoleBlockEntity be))
             return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
 

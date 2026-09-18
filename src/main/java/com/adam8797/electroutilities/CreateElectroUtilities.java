@@ -2,6 +2,8 @@ package com.adam8797.electroutilities;
 
 import com.adam8797.electroutilities.content.substation.SubstationPlacementHelper;
 import com.adam8797.electroutilities.content.substation.SubstationPoleBlock;
+import com.adam8797.electroutilities.content.utilitypole.UtilityPoleBlock;
+import com.adam8797.electroutilities.content.utilitypole.UtilityPolePlacementHelper;
 import com.mojang.logging.LogUtils;
 import com.simibubi.create.foundation.data.CreateRegistrate;
 import net.createmod.catnip.placement.PlacementHelpers;
@@ -41,6 +43,7 @@ public class CreateElectroUtilities {
         EUCreativeTab.register(modEventBus);
 
         SubstationPoleBlock.placementHelperId = PlacementHelpers.register(new SubstationPlacementHelper());
+        UtilityPoleBlock.placementHelperId = PlacementHelpers.register(new UtilityPolePlacementHelper());
     }
 
     public static ResourceLocation rl(String path) {

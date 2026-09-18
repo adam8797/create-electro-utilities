@@ -16,7 +16,7 @@ public class EUItems {
             .model((c, p) -> p.withExistingParent(c.getName(), p.mcLoc("item/stick")))
             .register();
 
-    /** Pressed from a brass nugget; rename in an anvil, then apply to a pole to label it (<=5 chars). */
+    /** Apply to a pole to open a sign-style label editor (one line, &lt;=5 chars); consumed on confirm. */
     public static final ItemEntry<Item> UTILITY_POLE_LABEL = CreateElectroUtilities.REGISTRATE
             .item("utility_pole_label", Item::new)
             .model((c, p) -> p.withExistingParent(c.getName(), p.mcLoc("item/name_tag")))

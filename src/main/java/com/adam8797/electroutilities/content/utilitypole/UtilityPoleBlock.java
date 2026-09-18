@@ -18,6 +18,7 @@ import com.george_vi.electroenergetics.foundation.nodes.InWorldNodeConnection;
 import com.george_vi.electroenergetics.simulation.infrastructure.InWorldNodeData;
 import com.george_vi.electroenergetics.simulation.infrastructure.InfrastructureSavedData;
 import com.george_vi.electroenergetics.simulation.infrastructure.WireData;
+import com.adam8797.electroutilities.net.OpenLabelEditorPayload;
 import com.simibubi.create.content.equipment.wrench.IWrenchable;
 
 import net.createmod.catnip.placement.IPlacementHelper;
@@ -25,8 +26,8 @@ import net.createmod.catnip.placement.PlacementHelpers;
 import net.createmod.catnip.placement.PlacementOffset;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
@@ -58,6 +59,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import net.neoforged.neoforge.network.PacketDistributor;
 
 /**
  * An 8x8x16 wooden utility pole — placed like a log, mined with an axe. It is the single block for all
@@ -209,7 +211,7 @@ public class UtilityPoleBlock extends RotatedPillarBlock
             return applyConnector(be, level, pos, player, stack, face, connector, state.getValue(AXIS));
 
         if (item == EUItems.UTILITY_POLE_LABEL.get())
-            return applyLabel(be, level, pos, player, stack, face);
+            return applyLabel(level, pos, player, face);
 
         return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
     }
@@ -248,16 +250,12 @@ public class UtilityPoleBlock extends RotatedPillarBlock
         return ItemInteractionResult.sidedSuccess(level.isClientSide);
     }
 
-    private ItemInteractionResult applyLabel(UtilityPoleBlockEntity be, Level level, BlockPos pos,
-                                             Player player, ItemStack stack, Direction face) {
+    /** Opens the label editor for a new (blank) label; the item is consumed on confirm, not here. */
+    private ItemInteractionResult applyLabel(Level level, BlockPos pos, Player player, Direction face) {
         if (face.getAxis().isVertical())
             return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
-        if (!level.isClientSide) {
-            String text = stack.has(DataComponents.CUSTOM_NAME) ? stack.getHoverName().getString() : "";
-            be.setLabel(text, face);
-            level.playSound(null, pos, SoundEvents.WOOD_PLACE, SoundSource.BLOCKS, 1.0f, 1.0f);
-            consume(player, stack);
-        }
+        if (!level.isClientSide && player instanceof ServerPlayer sp)
+            PacketDistributor.sendToPlayer(sp, new OpenLabelEditorPayload(pos, face, ""));
         return ItemInteractionResult.sidedSuccess(level.isClientSide);
     }
 
@@ -327,13 +325,23 @@ public class UtilityPoleBlock extends RotatedPillarBlock
         return IWrenchable.super.onSneakWrenched(state, context);
     }
 
-    // ---- sneak + empty hand: remove label or crossarm, returning the item ----
+    // ---- empty hand: sneak removes a label/crossarm (returning the item); plain click re-opens the editor ----
 
     @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
-        if (!player.isShiftKeyDown() || !(level.getBlockEntity(pos) instanceof UtilityPoleBlockEntity be))
+        if (!(level.getBlockEntity(pos) instanceof UtilityPoleBlockEntity be))
             return InteractionResult.PASS;
         Direction face = hit.getDirection();
+
+        if (!player.isShiftKeyDown()) {
+            // Plain (non-sneak) click on a labeled face re-opens the sign-style editor to change the text.
+            if (be.hasLabel() && be.getLabelFace() == face) {
+                if (!level.isClientSide && player instanceof ServerPlayer sp)
+                    PacketDistributor.sendToPlayer(sp, new OpenLabelEditorPayload(pos, face, be.getLabelText()));
+                return InteractionResult.sidedSuccess(level.isClientSide);
+            }
+            return InteractionResult.PASS;
+        }
 
         if (be.hasLabel() && be.getLabelFace() == face) {
             if (!level.isClientSide && level instanceof ServerLevel sl) {

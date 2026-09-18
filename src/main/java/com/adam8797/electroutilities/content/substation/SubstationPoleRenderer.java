@@ -1,9 +1,9 @@
 package com.adam8797.electroutilities.content.substation;
 
+import com.adam8797.electroutilities.client.LabelRenderer;
 import com.adam8797.electroutilities.client.RenderUtil;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.math.Axis;
 
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -66,16 +66,7 @@ public class SubstationPoleRenderer implements BlockEntityRenderer<SubstationPol
     }
 
     private void renderLabel(SubstationPoleBlockEntity be, PoseStack poseStack, MultiBufferSource buffer, int light) {
-        Direction facing = be.getLabelFace();
-        poseStack.pushPose();
-        poseStack.translate(0.5, 0.5, 0.5);
-        poseStack.mulPose(Axis.YP.rotationDegrees(180.0f - facing.toYRot()));
-        poseStack.translate(0.0, 0.0, -0.5 + 1.0 / 16.0);
-        float scale = 1.0f / 64.0f;
-        poseStack.scale(-scale, -scale, scale);
-        int width = font.width(be.getLabelText());
-        font.drawInBatch(be.getLabelText(), -width / 2.0f, -4.0f, 0xFF202020, false,
-                poseStack.last().pose(), buffer, Font.DisplayMode.NORMAL, 0, light);
-        poseStack.popPose();
+        // 4x4 post: its face is 2/16 from the block centre, so the plate sits on the wood.
+        LabelRenderer.render(font, poseStack, buffer, light, be.getLabelText(), be.getLabelFace(), 2.0f / 16.0f);
     }
 }

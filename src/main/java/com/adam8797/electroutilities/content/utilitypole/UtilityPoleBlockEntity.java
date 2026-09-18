@@ -1,5 +1,7 @@
 package com.adam8797.electroutilities.content.utilitypole;
 
+import com.adam8797.electroutilities.content.label.LabelableBlockEntity;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -21,7 +23,7 @@ import net.minecraft.world.level.block.state.BlockState;
  * </ul>
  * Synced to clients for rendering.
  */
-public class UtilityPoleBlockEntity extends BlockEntity {
+public class UtilityPoleBlockEntity extends BlockEntity implements LabelableBlockEntity {
 
     public static final int MAX_LABEL_LENGTH = 5;
 
@@ -70,6 +72,11 @@ public class UtilityPoleBlockEntity extends BlockEntity {
 
     public boolean hasLabel() {
         return !labelText.isEmpty();
+    }
+
+    @Override
+    public int maxLabelLength() {
+        return MAX_LABEL_LENGTH;
     }
 
     // ---- mutators (server-side; each re-syncs) ----

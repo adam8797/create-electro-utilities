@@ -1,5 +1,7 @@
 package com.adam8797.electroutilities.content.substation;
 
+import com.adam8797.electroutilities.content.label.LabelableBlockEntity;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -14,9 +16,10 @@ import net.minecraft.world.level.block.state.BlockState;
 /**
  * Holds a substation pole's optional label (text + face). Synced to clients for rendering.
  */
-public class SubstationPoleBlockEntity extends BlockEntity {
+public class SubstationPoleBlockEntity extends BlockEntity implements LabelableBlockEntity {
 
-    public static final int MAX_LABEL_LENGTH = 5;
+    // The substation post is only 4x4, so its plate fits far less text than the utility pole's.
+    public static final int MAX_LABEL_LENGTH = 2;
 
     private String labelText = "";
     private Direction labelFace = Direction.NORTH;
@@ -35,6 +38,11 @@ public class SubstationPoleBlockEntity extends BlockEntity {
 
     public boolean hasLabel() {
         return !labelText.isEmpty();
+    }
+
+    @Override
+    public int maxLabelLength() {
+        return MAX_LABEL_LENGTH;
     }
 
     public void setLabel(String text, Direction face) {

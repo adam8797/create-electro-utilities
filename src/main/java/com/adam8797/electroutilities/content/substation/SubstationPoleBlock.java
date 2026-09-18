@@ -4,14 +4,15 @@ import javax.annotation.Nullable;
 
 import com.adam8797.electroutilities.EUBlockEntityTypes;
 import com.adam8797.electroutilities.EUItems;
+import com.adam8797.electroutilities.net.OpenLabelEditorPayload;
 
 import net.createmod.catnip.placement.IPlacementHelper;
 import net.createmod.catnip.placement.PlacementHelpers;
 import net.createmod.catnip.placement.PlacementOffset;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionResult;
@@ -37,6 +38,7 @@ import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import net.neoforged.neoforge.network.PacketDistributor;
 
 /**
  * A thin 4x4 substation pole. Placed shaft-style along an axis, it forms a column (max
@@ -143,23 +145,31 @@ public class SubstationPoleBlock extends RotatedPillarBlock
         if (stack.getItem() != EUItems.UTILITY_POLE_LABEL.get())
             return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
         Direction face = hit.getDirection();
-        if (face.getAxis().isVertical() || !(level.getBlockEntity(pos) instanceof SubstationPoleBlockEntity be))
+        if (face.getAxis().isVertical() || !(level.getBlockEntity(pos) instanceof SubstationPoleBlockEntity))
             return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
-        if (!level.isClientSide) {
-            String text = stack.has(DataComponents.CUSTOM_NAME) ? stack.getHoverName().getString() : "";
-            be.setLabel(text, face);
-            level.playSound(null, pos, SoundEvents.WOOD_PLACE, SoundSource.BLOCKS, 1.0f, 1.0f);
-            if (!player.getAbilities().instabuild)
-                stack.shrink(1);
-        }
+        // Open the sign-style editor; the item is consumed on confirm (see EUPackets), not here.
+        if (!level.isClientSide && player instanceof ServerPlayer sp)
+            PacketDistributor.sendToPlayer(sp, new OpenLabelEditorPayload(pos, face, ""));
         return ItemInteractionResult.sidedSuccess(level.isClientSide);
     }
 
     @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
-        if (!player.isShiftKeyDown() || !(level.getBlockEntity(pos) instanceof SubstationPoleBlockEntity be))
+        if (!(level.getBlockEntity(pos) instanceof SubstationPoleBlockEntity be))
             return InteractionResult.PASS;
-        if (be.hasLabel() && be.getLabelFace() == hit.getDirection()) {
+        Direction face = hit.getDirection();
+
+        if (!player.isShiftKeyDown()) {
+            // Plain click on a labeled face re-opens the sign-style editor to change the text.
+            if (be.hasLabel() && be.getLabelFace() == face) {
+                if (!level.isClientSide && player instanceof ServerPlayer sp)
+                    PacketDistributor.sendToPlayer(sp, new OpenLabelEditorPayload(pos, face, be.getLabelText()));
+                return InteractionResult.sidedSuccess(level.isClientSide);
+            }
+            return InteractionResult.PASS;
+        }
+
+        if (be.hasLabel() && be.getLabelFace() == face) {
             if (!level.isClientSide && level instanceof ServerLevel sl) {
                 be.clearLabel();
                 popResource(sl, pos, new ItemStack(EUItems.UTILITY_POLE_LABEL.get()));

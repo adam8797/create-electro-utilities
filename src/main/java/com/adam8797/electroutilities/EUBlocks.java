@@ -7,6 +7,7 @@ import java.util.Map;
 
 import com.adam8797.electroutilities.content.substation.SubstationMaterial;
 import com.adam8797.electroutilities.content.substation.SubstationPoleBlock;
+import com.adam8797.electroutilities.content.utilitypole.CrossarmArmBlock;
 import com.adam8797.electroutilities.content.utilitypole.UtilityPoleBlock;
 import com.adam8797.electroutilities.content.utilitypole.WoodSet;
 import com.tterrag.registrate.util.entry.BlockEntry;
@@ -26,6 +27,17 @@ public class EUBlocks {
 
     /** One substation pole per vanilla wood, plus concrete. */
     public static final List<BlockEntry<SubstationPoleBlock>> SUBSTATION_POLES = new ArrayList<>();
+
+    /** The crossarm arm segment placed automatically as part of a crossarm multiblock (no item). */
+    public static final BlockEntry<CrossarmArmBlock> CROSSARM_ARM = CreateElectroUtilities.REGISTRATE
+            .block("crossarm_arm", CrossarmArmBlock::new)
+            // OAK_PLANKS (not OAK_LOG): a log's map-colour depends on its axis state, which this
+            // axis-less block doesn't have, so copying log properties crashes at registration.
+            .initialProperties(() -> Blocks.OAK_PLANKS)
+            .properties(p -> p.noOcclusion().noLootTable())
+            .blockstate((c, p) -> p.simpleBlock(c.get(),
+                    p.models().getExistingFile(CreateElectroUtilities.rl("block/crossarm_arm"))))
+            .register();
 
     static {
         for (WoodSet wood : WoodSet.values())

@@ -5,6 +5,8 @@ import java.util.List;
 
 import com.adam8797.electroutilities.content.substation.SubstationPoleBlockEntity;
 import com.adam8797.electroutilities.content.substation.SubstationPoleRenderer;
+import com.adam8797.electroutilities.content.utilitypole.CrossarmArmBlockEntity;
+import com.adam8797.electroutilities.content.utilitypole.CrossarmArmRenderer;
 import com.adam8797.electroutilities.content.utilitypole.UtilityPoleBlockEntity;
 import com.adam8797.electroutilities.content.utilitypole.UtilityPoleRenderer;
 import com.tterrag.registrate.util.entry.BlockEntityEntry;
@@ -22,6 +24,12 @@ public class EUBlockEntityTypes {
             .blockEntity("utility_pole", UtilityPoleBlockEntity::new)
             .validBlocks(poleSuppliers())
             .renderer(() -> UtilityPoleRenderer::new)
+            .register();
+
+    public static final BlockEntityEntry<CrossarmArmBlockEntity> CROSSARM_ARM = CreateElectroUtilities.REGISTRATE
+            .blockEntity("crossarm_arm", CrossarmArmBlockEntity::new)
+            .validBlock(EUBlocks.CROSSARM_ARM::get)
+            .renderer(() -> CrossarmArmRenderer::new)
             .register();
 
     public static final BlockEntityEntry<SubstationPoleBlockEntity> SUBSTATION_POLE = CreateElectroUtilities.REGISTRATE

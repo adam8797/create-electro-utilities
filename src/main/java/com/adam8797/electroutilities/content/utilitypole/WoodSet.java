@@ -37,6 +37,14 @@ public enum WoodSet {
         return id;
     }
 
+    /** Looks up a wood by its {@link #id()}, defaulting to {@link #OAK}. */
+    public static WoodSet byId(String id) {
+        for (WoodSet wood : values())
+            if (wood.id.equals(id))
+                return wood;
+        return OAK;
+    }
+
     public MapColor mapColor() {
         return mapColor;
     }

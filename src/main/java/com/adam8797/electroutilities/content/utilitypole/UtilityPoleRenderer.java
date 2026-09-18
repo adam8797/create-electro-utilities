@@ -17,6 +17,8 @@ import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.RotatedPillarBlock;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * Renders a utility pole's active feature(s): EE connector models (for face-connectors or the three
@@ -56,29 +58,35 @@ public class UtilityPoleRenderer implements BlockEntityRenderer<UtilityPoleBlock
 
     private void renderFaceConnectors(UtilityPoleBlockEntity be, BakedModel model, ModelBlockRenderer renderer,
                                       PoseStack poseStack, VertexConsumer vc, int light, int overlay) {
+        Direction.Axis poleAxis = be.getBlockState().getValue(RotatedPillarBlock.AXIS);
         for (Direction face : PoleConnectorGeometry.FACES) {
             PoleConnector connector = be.getConnector(face);
             if (connector == PoleConnector.NONE)
                 continue;
-            for (double h : PoleConnectorGeometry.pinHeights(connector.nodeCount()))
-                renderFaceConnector(model, renderer, poseStack, vc, light, overlay, face, h);
+            for (double spread : PoleConnectorGeometry.pinSpreads(connector.nodeCount()))
+                renderFaceConnector(model, renderer, poseStack, vc, light, overlay, face, poleAxis, spread);
         }
     }
 
     private void renderFaceConnector(BakedModel model, ModelBlockRenderer renderer, PoseStack poseStack,
-                                     VertexConsumer vc, int light, int overlay, Direction face, double height) {
-        double mountX = 0.5, mountZ = 0.5;
+                                     VertexConsumer vc, int light, int overlay, Direction face,
+                                     Direction.Axis poleAxis, double spread) {
+        // Base at the block centre (offset along the pole axis by the pin spread), pointing outward:
+        // the model's insulator ball lands at the block edge = the node (NODE_OUT = 0.5).
         Axis rotAxis;
         float angle;
         switch (face) {
-            case NORTH -> { mountZ = 0.5 - PoleConnectorGeometry.SURFACE; rotAxis = Axis.XP; angle = -90f; }
-            case SOUTH -> { mountZ = 0.5 + PoleConnectorGeometry.SURFACE; rotAxis = Axis.XP; angle = 90f; }
-            case EAST -> { mountX = 0.5 + PoleConnectorGeometry.SURFACE; rotAxis = Axis.ZP; angle = -90f; }
-            case WEST -> { mountX = 0.5 - PoleConnectorGeometry.SURFACE; rotAxis = Axis.ZP; angle = 90f; }
+            case UP -> { rotAxis = Axis.YP; angle = 0f; }
+            case DOWN -> { rotAxis = Axis.XP; angle = 180f; }
+            case NORTH -> { rotAxis = Axis.XP; angle = -90f; }
+            case SOUTH -> { rotAxis = Axis.XP; angle = 90f; }
+            case EAST -> { rotAxis = Axis.ZP; angle = -90f; }
+            case WEST -> { rotAxis = Axis.ZP; angle = 90f; }
             default -> { return; }
         }
+        Vec3 axisUnit = PoleConnectorGeometry.axisVec(poleAxis);
         poseStack.pushPose();
-        poseStack.translate(mountX, height, mountZ);
+        poseStack.translate(0.5 + axisUnit.x * spread, 0.5 + axisUnit.y * spread, 0.5 + axisUnit.z * spread);
         poseStack.mulPose(rotAxis.rotationDegrees(angle));
         poseStack.translate(-0.5, 0.0, -0.5);
         renderer.renderModel(poseStack.last(), vc, null, model, 1, 1, 1, light, overlay);
@@ -89,29 +97,24 @@ public class UtilityPoleRenderer implements BlockEntityRenderer<UtilityPoleBlock
 
     private void renderCrossarm(UtilityPoleBlockEntity be, BakedModel connectorModel, ModelBlockRenderer renderer,
                                 PoseStack poseStack, MultiBufferSource buffer, int light, int overlay) {
+        // The pole renders only its own slot: the beam segment across this block, and the centre
+        // connector when it is the topmost block. The two side connectors are their own arm blocks.
         Direction.Axis axis = be.getCrossarmAxis();
-        int offset = be.getCrossarmOffset();
-        double shift = CrossarmGeometry.shift(offset);
-        double y1 = 11.0 / 16.0, y2 = 15.0 / 16.0, p1 = 6.0 / 16.0, p2 = 10.0 / 16.0;
-        double lo = -0.5 + shift, hi = 1.5 + shift;
+        double y1 = CrossarmGeometry.BEAM_Y1, y2 = CrossarmGeometry.BEAM_Y2;
+        double p1 = CrossarmGeometry.PERP1, p2 = CrossarmGeometry.PERP2;
 
-        // Beam, textured with the pole's interior (stripped) wood texture. Render fully with the solid
-        // buffer before touching any other render type — a BufferSource only keeps one builder active.
         TextureAtlasSprite sprite = interiorSprite(be);
         VertexConsumer solid = buffer.getBuffer(RenderType.solid());
         if (axis == Direction.Axis.X)
-            renderCuboid(poseStack, solid, sprite, lo, y1, p1, hi, y2, p2, light, overlay);
+            renderCuboid(poseStack, solid, sprite, 0.0, y1, p1, 1.0, y2, p2, light, overlay);
         else
-            renderCuboid(poseStack, solid, sprite, p1, y1, lo, p2, y2, hi, light, overlay);
+            renderCuboid(poseStack, solid, sprite, p1, y1, 0.0, p2, y2, 1.0, light, overlay);
 
-        // Now (and only now) fetch the cutout buffer for the connector models.
-        VertexConsumer cutout = buffer.getBuffer(RenderType.cutout());
-        for (int i = 0; i < 3; i++) {
-            double a = CrossarmGeometry.along(i, offset);
-            double x = axis == Direction.Axis.X ? a : 0.5;
-            double z = axis == Direction.Axis.X ? 0.5 : a;
+        boolean top = be.getLevel() != null && UtilityPoleBlock.isCrossarmTop(be.getLevel(), be.getBlockPos());
+        if (top) {
+            VertexConsumer cutout = buffer.getBuffer(RenderType.cutout());
             poseStack.pushPose();
-            poseStack.translate(x - 0.5, y2, z - 0.5);
+            poseStack.translate(0.0, CrossarmGeometry.CONNECTOR_BASE_Y, 0.0);
             renderer.renderModel(poseStack.last(), cutout, null, connectorModel, 1, 1, 1, light, overlay);
             poseStack.popPose();
         }

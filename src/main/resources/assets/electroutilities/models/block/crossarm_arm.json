@@ -1,0 +1,6 @@
+{
+    "__comment": "Empty model — the crossarm arm block is drawn entirely by its block entity renderer.",
+    "textures": {
+        "particle": "minecraft:block/stripped_oak_log"
+    }
+}

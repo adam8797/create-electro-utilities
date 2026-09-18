@@ -8,6 +8,7 @@ import java.util.Map;
 import javax.annotation.Nullable;
 
 import com.adam8797.electroutilities.EUBlockEntityTypes;
+import com.adam8797.electroutilities.EUBlocks;
 import com.adam8797.electroutilities.EUItems;
 import com.adam8797.electroutilities.EUSimulatedDevices;
 import com.george_vi.electroenergetics.devices.device.SimulatedDeviceType;
@@ -15,6 +16,7 @@ import com.george_vi.electroenergetics.foundation.device.ElectricalDeviceBlock;
 import com.george_vi.electroenergetics.foundation.nodes.InWorldNodeConnection;
 import com.george_vi.electroenergetics.simulation.infrastructure.InWorldNodeData;
 import com.george_vi.electroenergetics.simulation.infrastructure.InfrastructureSavedData;
+import com.george_vi.electroenergetics.simulation.infrastructure.WireData;
 import com.simibubi.create.content.equipment.wrench.IWrenchable;
 
 import net.createmod.catnip.placement.IPlacementHelper;
@@ -97,13 +99,39 @@ public class UtilityPoleBlock extends RotatedPillarBlock
 
     // ---- shape ----
 
-    @Override
-    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+    private static VoxelShape poleShape(BlockState state) {
         return switch (state.getValue(AXIS)) {
             case X -> SHAPE_X;
             case Z -> SHAPE_Z;
             default -> SHAPE_Y;
         };
+    }
+
+    @Override
+    public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        VoxelShape base = poleShape(state);
+        // When a crossarm is present, render/interact with the beam over the pole's own slot, plus the
+        // centre connector stalk (only when this pole is the topmost block, matching the node).
+        if (level.getBlockEntity(pos) instanceof UtilityPoleBlockEntity be && be.getMount() == PoleMount.CROSSARM) {
+            VoxelShape beam = be.getCrossarmAxis() == Direction.Axis.X
+                    ? Block.box(0, 11, 6, 16, 15, 10)
+                    : Block.box(6, 11, 0, 10, 15, 16);
+            VoxelShape shape = Shapes.or(base, beam);
+            if (isCrossarmTop(level, pos))
+                shape = Shapes.or(shape, Block.box(6, 11, 6, 10, 16, 10));
+            return shape;
+        }
+        return base;
+    }
+
+    /** The crossarm's centre (pole) connector only exists when nothing sits directly above the pole. */
+    public static boolean isCrossarmTop(BlockGetter level, BlockPos pos) {
+        return !(level.getBlockState(pos.above()).getBlock() instanceof UtilityPoleBlock);
+    }
+
+    @Override
+    public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        return poleShape(state);
     }
 
     @Override
@@ -174,7 +202,7 @@ public class UtilityPoleBlock extends RotatedPillarBlock
 
         PoleConnector connector = PoleConnector.fromItem(item);
         if (connector != null)
-            return applyConnector(be, level, pos, player, stack, face, connector);
+            return applyConnector(be, level, pos, player, stack, face, connector, state.getValue(AXIS));
 
         if (item == EUItems.UTILITY_POLE_LABEL.get())
             return applyLabel(be, level, pos, player, stack, face);
@@ -186,8 +214,11 @@ public class UtilityPoleBlock extends RotatedPillarBlock
                                                 Player player, ItemStack stack) {
         if (be.getMount() != PoleMount.NONE)
             return ItemInteractionResult.FAIL; // exclusive: clear the current mount first
+        Direction.Axis axis = player.getDirection().getClockWise().getAxis();
+        if (!canPlaceArms(level, pos, axis, 0))
+            return ItemInteractionResult.FAIL; // no room for the arm blocks
         if (!level.isClientSide) {
-            Direction.Axis axis = player.getDirection().getClockWise().getAxis();
+            placeArms(level, pos, axis, 0, wood);
             be.setCrossarm(axis, 0);
             level.scheduleTick(pos, this, 1);
             level.playSound(null, pos, SoundEvents.WOOD_PLACE, SoundSource.BLOCKS, 1.0f, 1.0f);
@@ -197,8 +228,10 @@ public class UtilityPoleBlock extends RotatedPillarBlock
     }
 
     private ItemInteractionResult applyConnector(UtilityPoleBlockEntity be, Level level, BlockPos pos,
-                                                 Player player, ItemStack stack, Direction face, PoleConnector connector) {
-        if (be.getMount() == PoleMount.CROSSARM || face.getAxis().isVertical())
+                                                 Player player, ItemStack stack, Direction face, PoleConnector connector,
+                                                 Direction.Axis poleAxis) {
+        // Connectors mount only on the four faces perpendicular to the pole's axis (not its ends).
+        if (be.getMount() == PoleMount.CROSSARM || !PoleConnectorGeometry.isValidFace(poleAxis, face))
             return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
         if (be.getConnector(face) != PoleConnector.NONE)
             return ItemInteractionResult.FAIL;
@@ -240,10 +273,15 @@ public class UtilityPoleBlock extends RotatedPillarBlock
         if (level.getBlockEntity(pos) instanceof UtilityPoleBlockEntity be) {
             if (be.getMount() == PoleMount.CROSSARM) {
                 if (!level.isClientSide) {
+                    Direction.Axis axis = be.getCrossarmAxis();
                     int next = be.getCrossarmOffset() >= 1 ? -1 : be.getCrossarmOffset() + 1;
-                    be.setCrossarmOffset(next);
-                    level.scheduleTick(pos, this, 1);
-                    level.playSound(null, pos, SoundEvents.ITEM_FRAME_ROTATE_ITEM, SoundSource.BLOCKS, 1.0f, 1.0f);
+                    if (canPlaceArms(level, pos, axis, next)) {
+                        removeCrossarm(level, pos, false); // clears state + removes old arms (no drop)
+                        placeArms(level, pos, axis, next, wood);
+                        be.setCrossarm(axis, next);
+                        level.scheduleTick(pos, this, 1);
+                        level.playSound(null, pos, SoundEvents.ITEM_FRAME_ROTATE_ITEM, SoundSource.BLOCKS, 1.0f, 1.0f);
+                    }
                 }
                 return InteractionResult.sidedSuccess(level.isClientSide);
             }
@@ -287,11 +325,9 @@ public class UtilityPoleBlock extends RotatedPillarBlock
             return InteractionResult.sidedSuccess(level.isClientSide);
         }
         if (be.getMount() == PoleMount.CROSSARM) {
-            if (!level.isClientSide && level instanceof ServerLevel sl) {
+            if (!level.isClientSide) {
                 removeWiresByPlayer(player, level, pos);
-                be.clearMount();
-                level.scheduleTick(pos, this, 1);
-                popResource(sl, pos, new ItemStack(EUItems.CROSSARM.get()));
+                removeCrossarm(level, pos, !player.isCreative());
                 level.playSound(null, pos, SoundEvents.WOOD_BREAK, SoundSource.BLOCKS, 1.0f, 1.0f);
             }
             return InteractionResult.sidedSuccess(level.isClientSide);
@@ -321,30 +357,99 @@ public class UtilityPoleBlock extends RotatedPillarBlock
     }
 
     @Override
+    public void neighborChanged(BlockState state, Level level, BlockPos pos, Block neighborBlock,
+                                BlockPos neighborPos, boolean movedByPiston) {
+        super.neighborChanged(state, level, pos, neighborBlock, neighborPos, movedByPiston);
+        // When the block directly above changes, a crossarm's centre connector may appear/disappear.
+        if (!level.isClientSide && level instanceof ServerLevel sl && neighborPos.equals(pos.above())
+                && level.getBlockEntity(pos) instanceof UtilityPoleBlockEntity be && be.getMount() == PoleMount.CROSSARM) {
+            if (!isCrossarmTop(level, pos))
+                dropWiresAt(sl, pos); // centre node is now blocked: actually disconnect its wires
+            level.scheduleTick(pos, this, 1); // re-register nodes (drop or restore the centre node)
+        }
+    }
+
+    /** Removes and drops every wire connected to any node at {@code pos} (no player context). */
+    private static void dropWiresAt(ServerLevel level, BlockPos pos) {
+        InfrastructureSavedData sd = InfrastructureSavedData.load(level);
+        for (InWorldNodeData nodeData : new ArrayList<>(sd.getNodesAt(pos)))
+            for (InWorldNodeConnection connection : new ArrayList<>(sd.getConnections(nodeData))) {
+                WireData wireData = sd.removeConnection(connection);
+                if (wireData != null)
+                    popResource(level, pos, new ItemStack(wireData.wireType().getSpooledItem()));
+            }
+    }
+
+    @Override
     public BlockState playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
         if (level instanceof ServerLevel sl) {
-            if (player.isCreative()) {
+            boolean creative = player.isCreative();
+            if (creative) {
                 InfrastructureSavedData sd = InfrastructureSavedData.load(sl);
                 for (InWorldNodeData nodeData : sd.getNodesAt(pos))
                     for (InWorldNodeConnection connection : sd.getConnections(nodeData))
                         sd.removeConnection(connection);
             } else {
                 removeWiresByPlayer(player, level, pos);
-                if (level.getBlockEntity(pos) instanceof UtilityPoleBlockEntity be) {
-                    if (be.getMount() == PoleMount.CROSSARM)
-                        popResource(sl, pos, new ItemStack(EUItems.CROSSARM.get()));
-                    else if (be.getMount() == PoleMount.CONNECTORS)
-                        for (Direction face : PoleConnectorGeometry.FACES) {
-                            PoleConnector connector = be.getConnector(face);
-                            if (connector != PoleConnector.NONE && connector.item() != null)
-                                popResource(sl, pos, new ItemStack(connector.item()));
-                        }
-                    if (be.hasLabel())
-                        popResource(sl, pos, new ItemStack(EUItems.UTILITY_POLE_LABEL.get()));
+            }
+            if (level.getBlockEntity(pos) instanceof UtilityPoleBlockEntity be) {
+                if (be.getMount() == PoleMount.CROSSARM) {
+                    removeCrossarm(level, pos, !creative); // removes arm blocks; drops the item in survival
+                } else if (be.getMount() == PoleMount.CONNECTORS && !creative) {
+                    for (Direction face : PoleConnectorGeometry.FACES) {
+                        PoleConnector connector = be.getConnector(face);
+                        if (connector != PoleConnector.NONE && connector.item() != null)
+                            popResource(sl, pos, new ItemStack(connector.item()));
+                    }
                 }
+                if (be.hasLabel() && !creative)
+                    popResource(sl, pos, new ItemStack(EUItems.UTILITY_POLE_LABEL.get()));
             }
         }
         return super.playerWillDestroy(level, pos, state, player);
+    }
+
+    // ---- crossarm multiblock helpers ----
+
+    private static boolean isOwnArm(BlockGetter level, BlockPos armPos, BlockPos polePos) {
+        return level.getBlockState(armPos).getBlock() instanceof CrossarmArmBlock
+                && level.getBlockEntity(armPos) instanceof CrossarmArmBlockEntity abe
+                && abe.getPolePos().equals(polePos);
+    }
+
+    /** True if the two arm slots for this axis/offset are free (or already our own arm blocks). */
+    private static boolean canPlaceArms(Level level, BlockPos polePos, Direction.Axis axis, int offset) {
+        for (BlockPos armPos : CrossarmGeometry.armPositions(polePos, axis, offset))
+            if (!level.getBlockState(armPos).canBeReplaced() && !isOwnArm(level, armPos, polePos))
+                return false;
+        return true;
+    }
+
+    private static void placeArms(Level level, BlockPos polePos, Direction.Axis axis, int offset, WoodSet wood) {
+        for (BlockPos armPos : CrossarmGeometry.armPositions(polePos, axis, offset)) {
+            level.setBlock(armPos, EUBlocks.CROSSARM_ARM.get().defaultBlockState(), 3);
+            if (level.getBlockEntity(armPos) instanceof CrossarmArmBlockEntity abe)
+                abe.configure(wood, polePos);
+        }
+    }
+
+    /**
+     * Tears down a crossarm: clears the pole's crossarm state first (so the arm blocks' own removal
+     * hooks see no crossarm and don't recurse), removes the arm blocks, and optionally drops the item.
+     */
+    public static void removeCrossarm(Level level, BlockPos polePos, boolean drop) {
+        if (!(level.getBlockEntity(polePos) instanceof UtilityPoleBlockEntity be) || be.getMount() != PoleMount.CROSSARM)
+            return;
+        Direction.Axis axis = be.getCrossarmAxis();
+        int offset = be.getCrossarmOffset();
+        be.clearMount();
+        for (BlockPos armPos : CrossarmGeometry.armPositions(polePos, axis, offset))
+            if (isOwnArm(level, armPos, polePos))
+                level.removeBlock(armPos, false);
+        if (level.getBlockState(polePos).getBlock() instanceof UtilityPoleBlock poleBlock)
+            level.scheduleTick(polePos, poleBlock, 1);
+        if (drop && level instanceof ServerLevel sl)
+            popResource(sl, polePos, new ItemStack(EUItems.CROSSARM.get()));
     }
 
     // ---- nodes ----
@@ -356,18 +461,21 @@ public class UtilityPoleBlock extends RotatedPillarBlock
             return nodes;
         switch (be.getMount()) {
             case CROSSARM -> {
-                for (int i = 0; i < 3; i++)
-                    nodes.put(i, CrossarmGeometry.nodePosition(be.getCrossarmAxis(), be.getCrossarmOffset(), i));
+                // The two side connectors live on the arm blocks; the pole hosts only the centre one,
+                // and only when it is the topmost block (nothing above it to block the connector).
+                if (isCrossarmTop(level, pos))
+                    nodes.put(0, CrossarmGeometry.nodeLocal());
             }
             case CONNECTORS -> {
+                Direction.Axis poleAxis = state.getValue(AXIS);
                 for (Direction face : PoleConnectorGeometry.FACES) {
                     PoleConnector connector = be.getConnector(face);
                     if (connector == PoleConnector.NONE)
                         continue;
-                    int fi = PoleConnectorGeometry.faceIndex(face);
-                    double[] heights = PoleConnectorGeometry.pinHeights(connector.nodeCount());
-                    for (int pin = 0; pin < heights.length; pin++)
-                        nodes.put(PoleConnectorGeometry.nodeId(fi, pin), PoleConnectorGeometry.nodePosition(face, heights[pin]));
+                    double[] spreads = PoleConnectorGeometry.pinSpreads(connector.nodeCount());
+                    for (int pin = 0; pin < spreads.length; pin++)
+                        nodes.put(PoleConnectorGeometry.nodeId(face, pin),
+                                PoleConnectorGeometry.nodePosition(face, poleAxis, spreads[pin]));
                 }
             }
             default -> {}

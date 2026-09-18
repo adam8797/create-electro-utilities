@@ -28,7 +28,11 @@ public class UtilityPoleBlockEntity extends BlockEntity {
     private PoleMount mount = PoleMount.NONE;
     private Direction.Axis crossarmAxis = Direction.Axis.X;
     private int crossarmOffset = 0; // -1, 0, +1
-    private final PoleConnector[] faces = { PoleConnector.NONE, PoleConnector.NONE, PoleConnector.NONE, PoleConnector.NONE };
+    // Indexed by Direction.get3DDataValue() (0..5); connectors only ever live on faces perpendicular
+    // to the pole axis, but storing all six keeps indexing simple.
+    private final PoleConnector[] faces = {
+            PoleConnector.NONE, PoleConnector.NONE, PoleConnector.NONE,
+            PoleConnector.NONE, PoleConnector.NONE, PoleConnector.NONE };
     private String labelText = "";
     private Direction labelFace = Direction.NORTH;
 

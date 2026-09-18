@@ -44,7 +44,7 @@ public class UtilityPoleRenderer implements BlockEntityRenderer<UtilityPoleBlock
 
         switch (be.getMount()) {
             case CONNECTORS -> renderFaceConnectors(be, connectorModel, renderer, poseStack, cutout, packedLight, packedOverlay);
-            case CROSSARM -> renderCrossarm(be, connectorModel, renderer, poseStack, buffer, cutout, packedLight, packedOverlay);
+            case CROSSARM -> renderCrossarm(be, connectorModel, renderer, poseStack, buffer, packedLight, packedOverlay);
             default -> {}
         }
 
@@ -88,22 +88,24 @@ public class UtilityPoleRenderer implements BlockEntityRenderer<UtilityPoleBlock
     // ---- crossarm ----
 
     private void renderCrossarm(UtilityPoleBlockEntity be, BakedModel connectorModel, ModelBlockRenderer renderer,
-                                PoseStack poseStack, MultiBufferSource buffer, VertexConsumer cutout, int light, int overlay) {
+                                PoseStack poseStack, MultiBufferSource buffer, int light, int overlay) {
         Direction.Axis axis = be.getCrossarmAxis();
         int offset = be.getCrossarmOffset();
         double shift = CrossarmGeometry.shift(offset);
+        double y1 = 11.0 / 16.0, y2 = 15.0 / 16.0, p1 = 6.0 / 16.0, p2 = 10.0 / 16.0;
+        double lo = -0.5 + shift, hi = 1.5 + shift;
 
-        // Beam, textured with the pole's interior (stripped) wood texture.
+        // Beam, textured with the pole's interior (stripped) wood texture. Render fully with the solid
+        // buffer before touching any other render type — a BufferSource only keeps one builder active.
         TextureAtlasSprite sprite = interiorSprite(be);
         VertexConsumer solid = buffer.getBuffer(RenderType.solid());
-        double lo = -0.5 + shift, hi = 1.5 + shift;
-        double y1 = 11.0 / 16.0, y2 = 15.0 / 16.0, p1 = 6.0 / 16.0, p2 = 10.0 / 16.0;
         if (axis == Direction.Axis.X)
             renderCuboid(poseStack, solid, sprite, lo, y1, p1, hi, y2, p2, light, overlay);
         else
             renderCuboid(poseStack, solid, sprite, p1, y1, lo, p2, y2, hi, light, overlay);
 
-        // Three connectors pointing up, sitting on top of the beam.
+        // Now (and only now) fetch the cutout buffer for the connector models.
+        VertexConsumer cutout = buffer.getBuffer(RenderType.cutout());
         for (int i = 0; i < 3; i++) {
             double a = CrossarmGeometry.along(i, offset);
             double x = axis == Direction.Axis.X ? a : 0.5;

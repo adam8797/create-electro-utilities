@@ -1,5 +1,6 @@
 {
-    "__comment": "4x4x16 substation pole post. Textured via #side and #end. Used with axisBlock rotation.",
+    "__comment": "4x4x16 substation pole post. Textured via #side and #end. Used with axisBlock rotation. Parents block/block so the item icon inherits the standard 3D GUI transforms.",
+    "parent": "minecraft:block/block",
     "textures": {
         "particle": "#side"
     },

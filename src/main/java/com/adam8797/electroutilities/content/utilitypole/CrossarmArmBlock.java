@@ -80,7 +80,9 @@ public class CrossarmArmBlock extends SimpleElectricalDeviceBlock<UtilityPoleDev
         VoxelShape beam = axisAt(level, pos) == Direction.Axis.X
                 ? Block.box(0, 11, 6, 16, 15, 10)
                 : Block.box(6, 11, 0, 10, 15, 16);
-        return Shapes.or(beam, Block.box(6, 11, 6, 10, 16, 10)); // beam + connector stalk for clicking
+        // beam + connector: the box tracks the rendered connector (x/z 5-11, y 15-25), poking above
+        // the block so the insulator itself is clickable, not just the wood.
+        return Shapes.or(beam, Block.box(5, 15, 5, 11, 25, 11));
     }
 
     @Override

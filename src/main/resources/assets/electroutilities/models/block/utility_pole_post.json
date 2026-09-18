@@ -1,5 +1,6 @@
 {
-    "__comment": "8x8x16 utility pole post. Textured via #side (bark) and #end (rings). Used with axisBlock rotation.",
+    "__comment": "8x8x16 utility pole post. Textured via #side (bark) and #end (rings). Used with axisBlock rotation. Parents block/block so the item icon inherits the standard 3D GUI transforms.",
+    "parent": "minecraft:block/block",
     "textures": {
         "particle": "#side"
     },

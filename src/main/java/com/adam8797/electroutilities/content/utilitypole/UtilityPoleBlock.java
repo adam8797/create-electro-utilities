@@ -118,8 +118,10 @@ public class UtilityPoleBlock extends RotatedPillarBlock
                     ? Block.box(0, 11, 6, 16, 15, 10)
                     : Block.box(6, 11, 0, 10, 15, 16);
             VoxelShape shape = Shapes.or(base, beam);
+            // Connector box tracks the rendered connector (x/z 5-11, y 15-25), poking above the block
+            // so the insulator itself is clickable, not just the wood.
             if (isCrossarmTop(level, pos))
-                shape = Shapes.or(shape, Block.box(6, 11, 6, 10, 16, 10));
+                shape = Shapes.or(shape, Block.box(5, 15, 5, 11, 25, 11));
             return shape;
         }
         return base;
@@ -148,7 +150,8 @@ public class UtilityPoleBlock extends RotatedPillarBlock
         if (state == null)
             return null;
         boolean waterlogged = context.getLevel().getFluidState(context.getClickedPos()).getType() == Fluids.WATER;
-        return state.setValue(WATERLOGGED, waterlogged);
+        // Utility poles are vertical only: ignore the clicked face's axis (RotatedPillarBlock's default).
+        return state.setValue(AXIS, Direction.Axis.Y).setValue(WATERLOGGED, waterlogged);
     }
 
     @Override
@@ -300,12 +303,27 @@ public class UtilityPoleBlock extends RotatedPillarBlock
                 return InteractionResult.sidedSuccess(level.isClientSide);
             }
         }
-        return IWrenchable.super.onWrenched(state, context);
+        // Deliberately not deferring to the default rotate: utility poles are vertical only, so a plain
+        // pole ignores the (non-sneak) wrench rather than being rotated onto its side.
+        return InteractionResult.PASS;
     }
 
     @Override
     public InteractionResult onSneakWrenched(BlockState state, UseOnContext context) {
-        removeWiresByPlayer(context.getPlayer(), context.getLevel(), context.getClickedPos());
+        Level level = context.getLevel();
+        BlockPos pos = context.getClickedPos();
+        Player player = context.getPlayer();
+        // A crossarm is dismantled first: sneak-wrenching the pole removes the crossarm (mirroring the
+        // empty-hand path) rather than uprooting the whole pole out from under it.
+        if (level.getBlockEntity(pos) instanceof UtilityPoleBlockEntity be && be.getMount() == PoleMount.CROSSARM) {
+            if (!level.isClientSide) {
+                removeWiresByPlayer(player, level, pos);
+                removeCrossarm(level, pos, player == null || !player.isCreative());
+                level.playSound(null, pos, SoundEvents.WOOD_BREAK, SoundSource.BLOCKS, 1.0f, 1.0f);
+            }
+            return InteractionResult.sidedSuccess(level.isClientSide);
+        }
+        removeWiresByPlayer(player, level, pos);
         return IWrenchable.super.onSneakWrenched(state, context);
     }
 

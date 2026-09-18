@@ -75,7 +75,7 @@ public class EUBlocks {
                 .tag(material.pickaxe() ? BlockTags.MINEABLE_WITH_PICKAXE : BlockTags.MINEABLE_WITH_AXE)
                 .blockstate((c, p) -> {
                     var model = p.models()
-                            .withExistingParent(c.getName(), CreateElectroUtilities.rl("block/substation_pole_post"))
+                            .withExistingParent(c.getName(), CreateElectroUtilities.rl("block/" + material.postModel()))
                             .texture("side", material.side())
                             .texture("end", material.end())
                             .texture("particle", material.side());

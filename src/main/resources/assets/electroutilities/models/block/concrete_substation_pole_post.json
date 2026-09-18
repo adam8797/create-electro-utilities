@@ -1,0 +1,23 @@
+{
+    "__comment": "4x4x16 substation pole post textured to match Electroenergetics' concrete pole. Self-contained: references EE's 32x32 concrete_pole texture directly (#0). The 4px-wide post face samples a 4px-wide (2 uv-unit) column of EE's clean repeatable body band (v 8-16, the lower half of the strip) so it isn't horizontally squished and has no dark base line or bright top edge, plus a matching 4px cap region. The datagen-supplied #side/#end (kept clean for the BER link nubs) are left unused here. Parents block/block for the 3D item icon. Used with axisBlock rotation.",
+    "parent": "minecraft:block/block",
+    "texture_size": [32, 32],
+    "textures": {
+        "0": "electroenergetics:block/concrete_pole",
+        "particle": "electroenergetics:block/concrete_pole"
+    },
+    "elements": [
+        {
+            "from": [6, 0, 6],
+            "to": [10, 16, 10],
+            "faces": {
+                "north": { "uv": [9, 8, 11, 16], "texture": "#0" },
+                "south": { "uv": [9, 8, 11, 16], "texture": "#0" },
+                "west":  { "uv": [9, 8, 11, 16], "texture": "#0" },
+                "east":  { "uv": [9, 8, 11, 16], "texture": "#0" },
+                "up":    { "uv": [4, 4, 6, 6], "texture": "#0" },
+                "down":  { "uv": [4, 4, 6, 6], "texture": "#0" }
+            }
+        }
+    ]
+}

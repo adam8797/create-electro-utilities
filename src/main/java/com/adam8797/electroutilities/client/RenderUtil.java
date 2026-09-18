@@ -17,6 +17,34 @@ public final class RenderUtil {
         return Minecraft.getInstance().getTextureAtlas(TextureAtlas.LOCATION_BLOCKS).apply(texture);
     }
 
+    /**
+     * Draws an axis-aligned textured cuboid (block units) with per-face UVs proportional to each face's
+     * size, so the texture keeps a uniform 16px-per-block density and is not stretched on long/thin faces
+     * (unlike {@link #cuboid}, which maps the whole sprite onto every face). Suits beams and other
+     * elongated shapes. Each face samples from the sprite's origin; extents are assumed within one tile.
+     */
+    public static void cuboidTiled(PoseStack poseStack, VertexConsumer vc, TextureAtlasSprite sprite,
+                                   double x1, double y1, double z1, double x2, double y2, double z2,
+                                   int light, int overlay) {
+        float su0 = sprite.getU0(), su1 = sprite.getU1(), sv0 = sprite.getV0(), sv1 = sprite.getV1();
+        double eX = x2 - x1, eY = y2 - y1, eZ = z2 - z1;
+        // Per-face UV extents (as fractions of the tile) match the face's two world-space dimensions:
+        //   down/up   -> u along X, v along Z ; north/south -> u along X, v along Y ; west/east -> u along Z, v along Y.
+        float uX = lerp(su0, su1, (float) eX), uZ = lerp(su0, su1, (float) eZ);
+        float vY = lerp(sv0, sv1, (float) eY), vZ = lerp(sv0, sv1, (float) eZ);
+        PoseStack.Pose pose = poseStack.last();
+        quad(pose, vc, x1, y1, z2, x1, y1, z1, x2, y1, z1, x2, y1, z2, 0, -1, 0, su0, sv0, uX, vZ, light, overlay);
+        quad(pose, vc, x1, y2, z1, x1, y2, z2, x2, y2, z2, x2, y2, z1, 0, 1, 0, su0, sv0, uX, vZ, light, overlay);
+        quad(pose, vc, x1, y1, z1, x1, y2, z1, x2, y2, z1, x2, y1, z1, 0, 0, -1, su0, sv0, uX, vY, light, overlay);
+        quad(pose, vc, x2, y1, z2, x2, y2, z2, x1, y2, z2, x1, y1, z2, 0, 0, 1, su0, sv0, uX, vY, light, overlay);
+        quad(pose, vc, x1, y1, z2, x1, y2, z2, x1, y2, z1, x1, y1, z1, -1, 0, 0, su0, sv0, uZ, vY, light, overlay);
+        quad(pose, vc, x2, y1, z1, x2, y2, z1, x2, y2, z2, x2, y1, z2, 1, 0, 0, su0, sv0, uZ, vY, light, overlay);
+    }
+
+    private static float lerp(float a, float b, float t) {
+        return a + (b - a) * t;
+    }
+
     /** Draws an axis-aligned textured cuboid (block units) with the full sprite on each face. */
     public static void cuboid(PoseStack poseStack, VertexConsumer vc, TextureAtlasSprite sprite,
                               double x1, double y1, double z1, double x2, double y2, double z2,

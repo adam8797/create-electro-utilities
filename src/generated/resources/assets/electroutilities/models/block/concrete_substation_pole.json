@@ -1,5 +1,5 @@
 {
-  "parent": "electroutilities:block/substation_pole_post",
+  "parent": "electroutilities:block/concrete_substation_pole_post",
   "textures": {
     "end": "minecraft:block/gray_concrete",
     "particle": "minecraft:block/gray_concrete",

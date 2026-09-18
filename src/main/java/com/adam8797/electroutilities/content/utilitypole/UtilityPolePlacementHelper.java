@@ -17,9 +17,9 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 
 /**
- * Shaft-style placement for utility poles: aiming at one end of an existing pole and using a utility
- * pole item places the next segment along that pole's axis, keeping the same orientation (so a
- * vertical pole extends vertically and a horizontal one extends horizontally).
+ * Shaft-style placement for utility poles: aiming at the top or bottom of an existing pole and using a
+ * utility pole item places the next segment above/below it. Utility poles are vertical only, so the
+ * column always extends along the Y axis.
  */
 public class UtilityPolePlacementHelper implements IPlacementHelper {
 
@@ -37,7 +37,7 @@ public class UtilityPolePlacementHelper implements IPlacementHelper {
 
     @Override
     public PlacementOffset getOffset(Player player, Level level, BlockState state, BlockPos pos, BlockHitResult ray) {
-        Direction.Axis axis = state.getValue(RotatedPillarBlock.AXIS);
+        Direction.Axis axis = Direction.Axis.Y; // vertical only
         List<Direction> directions = IPlacementHelper.orderedByDistanceOnlyAxis(pos, ray.getLocation(), axis);
         for (Direction dir : directions) {
             BlockPos cursor = pos;

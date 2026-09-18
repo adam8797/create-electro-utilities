@@ -38,9 +38,9 @@ public class CrossarmArmRenderer implements BlockEntityRenderer<CrossarmArmBlock
         double y1 = CrossarmGeometry.BEAM_Y1, y2 = CrossarmGeometry.BEAM_Y2;
         double p1 = CrossarmGeometry.PERP1, p2 = CrossarmGeometry.PERP2;
         if (axisX)
-            RenderUtil.cuboid(poseStack, solid, sprite, 0.0, y1, p1, 1.0, y2, p2, packedLight, packedOverlay);
+            RenderUtil.cuboidTiled(poseStack, solid, sprite, 0.0, y1, p1, 1.0, y2, p2, packedLight, packedOverlay);
         else
-            RenderUtil.cuboid(poseStack, solid, sprite, p1, y1, 0.0, p2, y2, 1.0, packedLight, packedOverlay);
+            RenderUtil.cuboidTiled(poseStack, solid, sprite, p1, y1, 0.0, p2, y2, 1.0, packedLight, packedOverlay);
 
         // Connector on top (cutout).
         BakedModel connector = mc.getModelManager().getModel(EUClient.CONNECTOR_MODEL);

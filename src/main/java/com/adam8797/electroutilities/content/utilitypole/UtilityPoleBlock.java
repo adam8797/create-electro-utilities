@@ -11,6 +11,7 @@ import com.adam8797.electroutilities.EUBlockEntityTypes;
 import com.adam8797.electroutilities.EUBlocks;
 import com.adam8797.electroutilities.EUItems;
 import com.adam8797.electroutilities.EUSimulatedDevices;
+import com.george_vi.electroenergetics.config.CEEConfigs;
 import com.george_vi.electroenergetics.devices.device.SimulatedDeviceType;
 import com.george_vi.electroenergetics.foundation.device.ElectricalDeviceBlock;
 import com.george_vi.electroenergetics.foundation.nodes.InWorldNodeConnection;
@@ -369,14 +370,22 @@ public class UtilityPoleBlock extends RotatedPillarBlock
         }
     }
 
-    /** Removes and drops every wire connected to any node at {@code pos} (no player context). */
+    /**
+     * Removes and drops every wire connected to any node at {@code pos} (no player context). Mirrors
+     * EE's break behaviour: individual wire pieces (wiresPerSpool each), unless alternate wire
+     * placement is configured, in which case a spool is returned.
+     */
     private static void dropWiresAt(ServerLevel level, BlockPos pos) {
         InfrastructureSavedData sd = InfrastructureSavedData.load(level);
         for (InWorldNodeData nodeData : new ArrayList<>(sd.getNodesAt(pos)))
             for (InWorldNodeConnection connection : new ArrayList<>(sd.getConnections(nodeData))) {
                 WireData wireData = sd.removeConnection(connection);
-                if (wireData != null)
-                    popResource(level, pos, new ItemStack(wireData.wireType().getSpooledItem()));
+                if (wireData == null)
+                    continue;
+                ItemStack drop = CEEConfigs.server().alternateWirePlacement.get()
+                        ? new ItemStack(wireData.wireType().getSpooledItem())
+                        : new ItemStack(wireData.wireType().getDrops(), CEEConfigs.server().wiresPerSpool.get());
+                popResource(level, pos, drop);
             }
     }
 

@@ -31,7 +31,7 @@
   "electroutilities.ponder.labels.text_1": "A label marks a pole with a short tag, mounted on the pole itself.",
   "electroutilities.ponder.labels.text_2": "Using a label opens a small editor for one short line — up to five characters.",
   "electroutilities.ponder.labels.text_3": "Thinner substation poles fit up to two characters.",
-  "electroutilities.ponder.labels.text_4": "Right-click a label to edit it, or sneak to remove it.",
+  "electroutilities.ponder.labels.text_4": "Right-click a label with an empty hand to edit it, or sneak to remove it.",
   "electroutilities.ponder.substation_pole.header": "Substation Poles",
   "electroutilities.ponder.substation_pole.text_1": "Substation poles are thin poles that can be used to decorate a substation.",
   "electroutilities.ponder.substation_pole.text_2": "A pole relays redstone up its length, making for cleaner builds.",

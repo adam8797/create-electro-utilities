@@ -33,7 +33,8 @@ public class EUItems {
     /** Applied to a pole to add a crossarm (adopts the pole's wood). */
     public static final ItemEntry<Item> CROSSARM = CreateElectroUtilities.REGISTRATE
             .item("utility_pole_crossarm", Item::new)
-            .model((c, p) -> p.withExistingParent(c.getName(), p.mcLoc("item/stick")))
+            // A rendered beam-and-connectors model (see item/crossarm_rendered) instead of a plain sprite.
+            .model((c, p) -> p.withExistingParent(c.getName(), CreateElectroUtilities.rl("item/crossarm_rendered")))
             .register();
 
     /** Apply to a pole to open a sign-style label editor (one line, &lt;=5 chars); consumed on confirm. */

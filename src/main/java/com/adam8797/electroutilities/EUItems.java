@@ -40,7 +40,8 @@ public class EUItems {
     /** Apply to a pole to open a sign-style label editor (one line, &lt;=5 chars); consumed on confirm. */
     public static final ItemEntry<Item> UTILITY_POLE_LABEL = CreateElectroUtilities.REGISTRATE
             .item("utility_pole_label", Item::new)
-            .model((c, p) -> p.withExistingParent(c.getName(), p.mcLoc("item/name_tag")))
+            // A small brass square (see item/label_tag) rather than the vanilla name tag sprite.
+            .model((c, p) -> p.withExistingParent(c.getName(), CreateElectroUtilities.rl("item/label_tag")))
             .register();
 
     public static void register() {

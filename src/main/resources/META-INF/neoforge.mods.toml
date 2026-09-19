@@ -4,7 +4,7 @@ license="MIT"
 
 [[mods]]
     modId="electroutilities"
-    version="1.21.1-0.1.0"
+    version="1.21.1-0.1.1"
     displayName="Create: Electro Utilities"
     authors="Adam Schiavone"
     description='''Utility poles, crossarms and substation poles for Create: Electro Energetics.'''

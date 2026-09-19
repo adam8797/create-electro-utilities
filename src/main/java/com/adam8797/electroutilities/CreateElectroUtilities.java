@@ -46,6 +46,42 @@ public class CreateElectroUtilities {
 
         SubstationPoleBlock.placementHelperId = PlacementHelpers.register(new SubstationPlacementHelper());
         UtilityPoleBlock.placementHelperId = PlacementHelpers.register(new UtilityPolePlacementHelper());
+
+        registerPonderLang();
+    }
+
+    /**
+     * Ponder scene titles/captions are looked up by translation key ({@code <modid>.ponder.<scene>.header}
+     * and {@code .text_N}), so the text passed to the storyboards must be backed by lang entries here.
+     * Keep these in sync with the {@code showText(...)} calls in EUPonderScenes (order = text_1, text_2, ...).
+     */
+    private static void registerPonderLang() {
+        ponder("utility_pole", "Routing wires with Utility Poles",
+                "Utility poles are crafted from logs treated with Transformer Oil, then placed like shafts.",
+                "Aim at a pole's top or bottom and use another pole to extend the column vertically.",
+                "Use a connector, crossarm, or label item on the pole to add wiring attachments.",
+                "Each face is wired independently — add a connector per face as needed.");
+        ponder("crossarm", "The Crossarm",
+                "The crossarm is crafted from three connectors over a row of planks.",
+                "Use it on a utility pole to span three blocks, giving three independently wireable connectors.",
+                "A wrench shifts the crossarm's offset — which slots the arms occupy along the pole.",
+                "Stacking another pole on top covers the crossarm's centre connector, leaving the two arm nodes.",
+                "Sneak-wrench removes the whole crossarm.");
+        ponder("substation_pole", "Substation Poles",
+                "Substation poles are thin poles that can be used to decorate a substation.",
+                "A pole relays redstone up its length, making for cleaner builds.",
+                "Other poles can carry a connector or further attachments for your wiring.");
+        ponder("labels", "Labelling Poles",
+                "A label marks a pole with a short tag, mounted on the pole itself.",
+                "Using a label opens a small editor for one short line — up to five characters.",
+                "Thinner substation poles fit up to two characters.",
+                "Right-click a label with an empty hand to edit it, or sneak to remove it.");
+    }
+
+    private static void ponder(String scene, String header, String... texts) {
+        REGISTRATE.addRawLang("electroutilities.ponder." + scene + ".header", header);
+        for (int i = 0; i < texts.length; i++)
+            REGISTRATE.addRawLang("electroutilities.ponder." + scene + ".text_" + (i + 1), texts[i]);
     }
 
     public static ResourceLocation rl(String path) {

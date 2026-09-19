@@ -1,0 +1,18 @@
+{
+    "type": "create:compacting",
+    "ingredients": [
+        {
+            "item": "minecraft:cherry_log"
+        },
+        {
+            "type": "neoforge:single",
+            "amount": 100,
+            "fluid": "electroenergetics:transformer_oil"
+        }
+    ],
+    "results": [
+        {
+            "id": "electroutilities:cherry_treated_wood"
+        }
+    ]
+}

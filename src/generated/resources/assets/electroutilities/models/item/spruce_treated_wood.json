@@ -1,0 +1,7 @@
+{
+  "parent": "electroutilities:item/treated_wood",
+  "textures": {
+    "end": "minecraft:block/spruce_log_top",
+    "side": "minecraft:block/spruce_log"
+  }
+}

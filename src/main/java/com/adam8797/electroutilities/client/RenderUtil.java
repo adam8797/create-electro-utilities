@@ -59,6 +59,26 @@ public final class RenderUtil {
         quad(pose, vc, x2, y1, z1, x2, y2, z1, x2, y2, z2, x2, y1, z2, 1, 0, 0, u0, v0, u1, v1, light, overlay);
     }
 
+    /**
+     * Like {@link #cuboid} but maps a sub-rectangle of the sprite (fractions {@code 0..1} within the sprite)
+     * onto every face — for sampling one clean region of an atlas-style texture (e.g. EE's concrete pole).
+     */
+    public static void cuboidRegion(PoseStack poseStack, VertexConsumer vc, TextureAtlasSprite sprite,
+                                    double x1, double y1, double z1, double x2, double y2, double z2,
+                                    float fu0, float fv0, float fu1, float fv1, int light, int overlay) {
+        float u0 = lerp(sprite.getU0(), sprite.getU1(), fu0);
+        float u1 = lerp(sprite.getU0(), sprite.getU1(), fu1);
+        float v0 = lerp(sprite.getV0(), sprite.getV1(), fv0);
+        float v1 = lerp(sprite.getV0(), sprite.getV1(), fv1);
+        PoseStack.Pose pose = poseStack.last();
+        quad(pose, vc, x1, y1, z2, x1, y1, z1, x2, y1, z1, x2, y1, z2, 0, -1, 0, u0, v0, u1, v1, light, overlay);
+        quad(pose, vc, x1, y2, z1, x1, y2, z2, x2, y2, z2, x2, y2, z1, 0, 1, 0, u0, v0, u1, v1, light, overlay);
+        quad(pose, vc, x1, y1, z1, x1, y2, z1, x2, y2, z1, x2, y1, z1, 0, 0, -1, u0, v0, u1, v1, light, overlay);
+        quad(pose, vc, x2, y1, z2, x2, y2, z2, x1, y2, z2, x1, y1, z2, 0, 0, 1, u0, v0, u1, v1, light, overlay);
+        quad(pose, vc, x1, y1, z2, x1, y2, z2, x1, y2, z1, x1, y1, z1, -1, 0, 0, u0, v0, u1, v1, light, overlay);
+        quad(pose, vc, x2, y1, z1, x2, y2, z1, x2, y2, z2, x2, y1, z2, 1, 0, 0, u0, v0, u1, v1, light, overlay);
+    }
+
     private static void quad(PoseStack.Pose pose, VertexConsumer vc,
                              double ax, double ay, double az, double bx, double by, double bz,
                              double cx, double cy, double cz, double dx, double dy, double dz,
@@ -72,11 +92,25 @@ public final class RenderUtil {
 
     private static void vertex(PoseStack.Pose pose, VertexConsumer vc, double x, double y, double z,
                                float nx, float ny, float nz, float u, float v, int light, int overlay) {
+        // Bake in vanilla directional face shading so these BER cuboids match adjacent baked block models
+        // (which have shade baked into their vertex colours); the solid render type does not shade for us.
+        int c = (int) (faceShade(nx, ny, nz) * 255.0f);
         vc.addVertex(pose, (float) x, (float) y, (float) z)
-                .setColor(255, 255, 255, 255)
+                .setColor(c, c, c, 255)
                 .setUv(u, v)
                 .setOverlay(overlay)
                 .setLight(light)
                 .setNormal(pose, nx, ny, nz);
+    }
+
+    /** Vanilla overworld face-shade multipliers: up 1.0, down 0.5, N/S 0.8, E/W 0.6. */
+    private static float faceShade(float nx, float ny, float nz) {
+        if (ny > 0.5f)
+            return 1.0f;
+        if (ny < -0.5f)
+            return 0.5f;
+        if (Math.abs(nz) > 0.5f)
+            return 0.8f;
+        return 0.6f;
     }
 }

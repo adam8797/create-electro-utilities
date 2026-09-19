@@ -1,0 +1,18 @@
+{
+    "type": "create:compacting",
+    "ingredients": [
+        {
+            "item": "minecraft:crimson_stem"
+        },
+        {
+            "type": "neoforge:single",
+            "amount": 100,
+            "fluid": "electroenergetics:transformer_oil"
+        }
+    ],
+    "results": [
+        {
+            "id": "electroutilities:crimson_treated_wood"
+        }
+    ]
+}

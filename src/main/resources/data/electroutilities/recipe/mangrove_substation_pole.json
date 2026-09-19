@@ -1,0 +1,16 @@
+{
+    "type": "minecraft:crafting_shaped",
+    "pattern": [
+        "T",
+        "T"
+    ],
+    "key": {
+        "T": {
+            "item": "electroutilities:mangrove_treated_wood"
+        }
+    },
+    "result": {
+        "id": "electroutilities:mangrove_substation_pole",
+        "count": 2
+    }
+}

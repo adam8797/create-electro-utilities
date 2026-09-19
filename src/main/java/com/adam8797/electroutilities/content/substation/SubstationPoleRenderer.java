@@ -27,6 +27,12 @@ public class SubstationPoleRenderer implements BlockEntityRenderer<SubstationPol
     private static final ResourceLocation REDSTONE_LINK = ResourceLocation.fromNamespaceAndPath("create", "redstone_link");
     private static final double S0 = 6.0 / 16.0, S1 = 10.0 / 16.0;
 
+    /** EE's concrete pole texture; the nub samples a square chunk of the same side strip the post uses. */
+    private static final ResourceLocation CONCRETE_TEX = ResourceLocation.fromNamespaceAndPath("electroenergetics", "block/concrete_pole");
+    // px 18-22 x 16-20 of 32: a 4x4 corner of the post's side strip (uv 9,8 area) — same shade, square so it
+    // maps onto the nub's faces without the stretch a tall strip caused.
+    private static final float C_U0 = 18f / 32f, C_V0 = 16f / 32f, C_U1 = 22f / 32f, C_V1 = 20f / 32f;
+
     private final Font font;
 
     public SubstationPoleRenderer(BlockEntityRendererProvider.Context context) {
@@ -47,21 +53,29 @@ public class SubstationPoleRenderer implements BlockEntityRenderer<SubstationPol
         if (level == null || !(be.getBlockState().getBlock() instanceof SubstationPoleBlock pole))
             return;
         BlockPos pos = be.getBlockPos();
-        TextureAtlasSprite sprite = RenderUtil.blockSprite(pole.getMaterial().side());
+        boolean concrete = pole.getMaterial().isConcrete();
+        // Match the post: concrete extends from EE's concrete texture (clean strip), wood from its log.
+        TextureAtlasSprite sprite = RenderUtil.blockSprite(concrete ? CONCRETE_TEX : pole.getMaterial().side());
         VertexConsumer solid = buffer.getBuffer(RenderType.solid());
 
         for (Direction dir : Direction.values()) {
             Block neighbor = level.getBlockState(pos.relative(dir)).getBlock();
             if (!REDSTONE_LINK.equals(BuiltInRegistries.BLOCK.getKey(neighbor)))
                 continue;
+            double x1, y1, z1, x2, y2, z2;
             switch (dir) {
-                case EAST -> RenderUtil.cuboid(poseStack, solid, sprite, S1, S0, S0, 1.0, S1, S1, light, overlay);
-                case WEST -> RenderUtil.cuboid(poseStack, solid, sprite, 0.0, S0, S0, S0, S1, S1, light, overlay);
-                case SOUTH -> RenderUtil.cuboid(poseStack, solid, sprite, S0, S0, S1, S1, S1, 1.0, light, overlay);
-                case NORTH -> RenderUtil.cuboid(poseStack, solid, sprite, S0, S0, 0.0, S1, S1, S0, light, overlay);
-                case UP -> RenderUtil.cuboid(poseStack, solid, sprite, S0, S1, S0, S1, 1.0, S1, light, overlay);
-                case DOWN -> RenderUtil.cuboid(poseStack, solid, sprite, S0, 0.0, S0, S1, S0, S1, light, overlay);
+                case EAST -> { x1 = S1; y1 = S0; z1 = S0; x2 = 1.0; y2 = S1; z2 = S1; }
+                case WEST -> { x1 = 0.0; y1 = S0; z1 = S0; x2 = S0; y2 = S1; z2 = S1; }
+                case SOUTH -> { x1 = S0; y1 = S0; z1 = S1; x2 = S1; y2 = S1; z2 = 1.0; }
+                case NORTH -> { x1 = S0; y1 = S0; z1 = 0.0; x2 = S1; y2 = S1; z2 = S0; }
+                case UP -> { x1 = S0; y1 = S1; z1 = S0; x2 = S1; y2 = 1.0; z2 = S1; }
+                case DOWN -> { x1 = S0; y1 = 0.0; z1 = S0; x2 = S1; y2 = S0; z2 = S1; }
+                default -> { continue; }
             }
+            if (concrete)
+                RenderUtil.cuboidRegion(poseStack, solid, sprite, x1, y1, z1, x2, y2, z2, C_U0, C_V0, C_U1, C_V1, light, overlay);
+            else
+                RenderUtil.cuboid(poseStack, solid, sprite, x1, y1, z1, x2, y2, z2, light, overlay);
         }
     }
 

@@ -1,0 +1,17 @@
+{
+    "type": "minecraft:crafting_shaped",
+    "pattern": [
+        "T",
+        "T",
+        "T"
+    ],
+    "key": {
+        "T": {
+            "item": "electroutilities:jungle_treated_wood"
+        }
+    },
+    "result": {
+        "id": "electroutilities:jungle_utility_pole",
+        "count": 3
+    }
+}

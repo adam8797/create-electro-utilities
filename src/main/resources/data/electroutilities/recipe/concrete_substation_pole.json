@@ -1,0 +1,16 @@
+{
+    "type": "minecraft:crafting_shaped",
+    "pattern": [
+        "T",
+        "T"
+    ],
+    "key": {
+        "T": {
+            "item": "minecraft:light_gray_concrete"
+        }
+    },
+    "result": {
+        "id": "electroutilities:concrete_substation_pole",
+        "count": 2
+    }
+}

@@ -19,17 +19,21 @@ public record SubstationMaterial(String id, MapColor mapColor, ResourceLocation 
                 false, "substation_pole_post");
     }
 
-    // The pole body borrows Electroenergetics' concrete-pole texture via the dedicated post model; side/end
-    // here stay plain gray_concrete because they feed the BER-drawn link nubs (which map a full sprite and
-    // so need a uniform tile, not EE's non-tiling atlas) and the break particle.
+    // The pole body (and its BER link extensions) borrow Electroenergetics' concrete-pole texture; side/end
+    // here only feed the break particle, which uses plain light gray concrete (matching the crafting item).
     public static final SubstationMaterial CONCRETE = new SubstationMaterial(
             "concrete", MapColor.STONE,
-            ResourceLocation.withDefaultNamespace("block/gray_concrete"),
-            ResourceLocation.withDefaultNamespace("block/gray_concrete"),
+            ResourceLocation.withDefaultNamespace("block/light_gray_concrete"),
+            ResourceLocation.withDefaultNamespace("block/light_gray_concrete"),
             true, "concrete_substation_pole_post");
 
     /** Registry name for this material's substation pole, e.g. {@code oak_substation_pole}. */
     public String blockName() {
         return id + "_substation_pole";
+    }
+
+    /** The concrete variant renders (post + BER extensions) from EE's concrete-pole texture, not a log. */
+    public boolean isConcrete() {
+        return "concrete".equals(id);
     }
 }

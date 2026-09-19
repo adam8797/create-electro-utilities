@@ -1,0 +1,18 @@
+{
+    "type": "create:compacting",
+    "ingredients": [
+        {
+            "item": "minecraft:acacia_log"
+        },
+        {
+            "type": "neoforge:single",
+            "amount": 100,
+            "fluid": "electroenergetics:transformer_oil"
+        }
+    ],
+    "results": [
+        {
+            "id": "electroutilities:acacia_treated_wood"
+        }
+    ]
+}

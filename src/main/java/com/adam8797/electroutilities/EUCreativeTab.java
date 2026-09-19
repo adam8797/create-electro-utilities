@@ -28,6 +28,8 @@ public class EUCreativeTab {
                         output.accept(EUItems.CROSSARM.get());
                         output.accept(EUItems.UTILITY_POLE_LABEL.get());
                         EUBlocks.SUBSTATION_POLES.forEach(pole -> output.accept(pole.get()));
+                        for (WoodSet wood : WoodSet.values())
+                            output.accept(EUItems.TREATED_WOOD.get(wood).get());
                     })
                     .build());
 

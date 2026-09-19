@@ -12,7 +12,7 @@ license="MIT"
 [[dependencies.electroutilities]]
     modId="neoforge"
     type="required"
-    versionRange="[21.1.174,)"
+    versionRange="[21.1.238,)"
     ordering="NONE"
     side="BOTH"
 

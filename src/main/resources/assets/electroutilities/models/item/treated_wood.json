@@ -1,0 +1,21 @@
+{
+    "__comment": "Shared parent for treated-wood item icons: a full log-like cube using #side/#end. Every face carries tintindex 0 so the green treated-wood ItemColor (see EUClient) tints it. Parents block/block for 3D GUI transforms.",
+    "parent": "minecraft:block/block",
+    "textures": {
+        "particle": "#side"
+    },
+    "elements": [
+        {
+            "from": [0, 0, 0],
+            "to": [16, 16, 16],
+            "faces": {
+                "north": { "uv": [0, 0, 16, 16], "texture": "#side", "tintindex": 0 },
+                "south": { "uv": [0, 0, 16, 16], "texture": "#side", "tintindex": 0 },
+                "west":  { "uv": [0, 0, 16, 16], "texture": "#side", "tintindex": 0 },
+                "east":  { "uv": [0, 0, 16, 16], "texture": "#side", "tintindex": 0 },
+                "up":    { "uv": [0, 0, 16, 16], "texture": "#end", "tintindex": 0 },
+                "down":  { "uv": [0, 0, 16, 16], "texture": "#end", "tintindex": 0 }
+            }
+        }
+    ]
+}

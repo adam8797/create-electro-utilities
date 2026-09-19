@@ -1,0 +1,16 @@
+{
+    "type": "minecraft:crafting_shaped",
+    "pattern": [
+        "T",
+        "T"
+    ],
+    "key": {
+        "T": {
+            "item": "electroutilities:spruce_treated_wood"
+        }
+    },
+    "result": {
+        "id": "electroutilities:spruce_substation_pole",
+        "count": 2
+    }
+}

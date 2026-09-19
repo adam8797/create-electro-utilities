@@ -1,0 +1,16 @@
+{
+    "type": "minecraft:crafting_shaped",
+    "pattern": [
+        "T",
+        "T"
+    ],
+    "key": {
+        "T": {
+            "item": "electroutilities:dark_oak_treated_wood"
+        }
+    },
+    "result": {
+        "id": "electroutilities:dark_oak_substation_pole",
+        "count": 2
+    }
+}

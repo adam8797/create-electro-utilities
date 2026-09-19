@@ -1,19 +1,19 @@
 {
     "type": "minecraft:crafting_shaped",
     "pattern": [
-        "PPP",
-        " S "
+        "CCC",
+        "PPP"
     ],
     "key": {
+        "C": {
+            "item": "electroenergetics:connector"
+        },
         "P": {
             "tag": "minecraft:planks"
-        },
-        "S": {
-            "item": "minecraft:stick"
         }
     },
     "result": {
         "id": "electroutilities:utility_pole_crossarm",
-        "count": 2
+        "count": 1
     }
 }

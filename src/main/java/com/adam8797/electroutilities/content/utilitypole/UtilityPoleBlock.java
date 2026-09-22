@@ -14,6 +14,7 @@ import com.adam8797.electroutilities.EUSimulatedDevices;
 import com.george_vi.electroenergetics.config.CEEConfigs;
 import com.george_vi.electroenergetics.devices.device.SimulatedDeviceType;
 import com.george_vi.electroenergetics.foundation.device.ElectricalDeviceBlock;
+import com.george_vi.electroenergetics.foundation.nodes.InWorldNode;
 import com.george_vi.electroenergetics.foundation.nodes.InWorldNodeConnection;
 import com.george_vi.electroenergetics.simulation.infrastructure.InWorldNodeData;
 import com.george_vi.electroenergetics.simulation.infrastructure.InfrastructureSavedData;
@@ -72,6 +73,8 @@ public class UtilityPoleBlock extends RotatedPillarBlock
         implements SimpleWaterloggedBlock, IWrenchable, EntityBlock, ElectricalDeviceBlock<UtilityPoleDevice> {
 
     public static final BooleanProperty WATERLOGGED = BlockStateProperties.WATERLOGGED;
+    /** True when the pole's rotation is a 45° (odd) step: the post renders/collides as a diamond. */
+    public static final BooleanProperty DIAGONAL = BooleanProperty.create("diagonal");
 
     /** Catnip placement-helper id, set once in {@link com.adam8797.electroutilities.CreateElectroUtilities}. */
     public static int placementHelperId;
@@ -79,6 +82,8 @@ public class UtilityPoleBlock extends RotatedPillarBlock
     private static final VoxelShape SHAPE_Y = box(4, 0, 4, 12, 16, 12);
     private static final VoxelShape SHAPE_X = box(0, 4, 4, 16, 12, 12);
     private static final VoxelShape SHAPE_Z = box(4, 4, 0, 12, 12, 16);
+    // Diamond footprint: the 8px post turned 45° reaches ~5.66px from centre, so a ~11px bounding box.
+    private static final VoxelShape SHAPE_Y_DIAG = box(2.3, 0, 2.3, 13.7, 16, 13.7);
 
     private final WoodSet wood;
 
@@ -87,6 +92,7 @@ public class UtilityPoleBlock extends RotatedPillarBlock
         this.wood = wood;
         registerDefaultState(defaultBlockState()
                 .setValue(AXIS, Direction.Axis.Y)
+                .setValue(DIAGONAL, false)
                 .setValue(WATERLOGGED, false));
     }
 
@@ -97,7 +103,7 @@ public class UtilityPoleBlock extends RotatedPillarBlock
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         super.createBlockStateDefinition(builder);
-        builder.add(WATERLOGGED);
+        builder.add(DIAGONAL, WATERLOGGED);
     }
 
     // ---- shape ----
@@ -106,9 +112,10 @@ public class UtilityPoleBlock extends RotatedPillarBlock
         return switch (state.getValue(AXIS)) {
             case X -> SHAPE_X;
             case Z -> SHAPE_Z;
-            default -> SHAPE_Y;
+            default -> state.getValue(DIAGONAL) ? SHAPE_Y_DIAG : SHAPE_Y;
         };
     }
+
 
     @Override
     public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
@@ -116,10 +123,7 @@ public class UtilityPoleBlock extends RotatedPillarBlock
         // When a crossarm is present, render/interact with the beam over the pole's own slot, plus the
         // centre connector stalk (only when this pole is the topmost block, matching the node).
         if (level.getBlockEntity(pos) instanceof UtilityPoleBlockEntity be && be.getMount() == PoleMount.CROSSARM) {
-            VoxelShape beam = be.getCrossarmAxis() == Direction.Axis.X
-                    ? Block.box(0, 11, 6, 16, 15, 10)
-                    : Block.box(6, 11, 0, 10, 15, 16);
-            VoxelShape shape = Shapes.or(base, beam);
+            VoxelShape shape = Shapes.or(base, CrossarmGeometry.beamOutline(be.getRotation()));
             // Connector box tracks the rendered connector (x/z 5-11, y 15-25), poking above the block
             // so the insulator itself is clickable, not just the wood.
             if (isCrossarmTop(level, pos))
@@ -153,7 +157,8 @@ public class UtilityPoleBlock extends RotatedPillarBlock
             return null;
         boolean waterlogged = context.getLevel().getFluidState(context.getClickedPos()).getType() == Fluids.WATER;
         // Utility poles are vertical only: ignore the clicked face's axis (RotatedPillarBlock's default).
-        return state.setValue(AXIS, Direction.Axis.Y).setValue(WATERLOGGED, waterlogged);
+        // Fresh poles start at rotation 0 (a square post), so DIAGONAL is false.
+        return state.setValue(AXIS, Direction.Axis.Y).setValue(DIAGONAL, false).setValue(WATERLOGGED, waterlogged);
     }
 
     @Override
@@ -201,31 +206,77 @@ public class UtilityPoleBlock extends RotatedPillarBlock
             return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
 
         Item item = stack.getItem();
-        Direction face = hit.getDirection();
 
         if (item == EUItems.CROSSARM.get())
             return applyCrossarm(be, level, pos, player, stack);
 
         PoleConnector connector = PoleConnector.fromItem(item);
         if (connector != null)
-            return applyConnector(be, level, pos, player, stack, face, connector, state.getValue(AXIS));
+            return applyConnector(be, level, pos, player, stack, hit, connector);
 
         if (item == EUItems.UTILITY_POLE_LABEL.get())
-            return applyLabel(level, pos, player, face);
+            return applyLabel(be, level, pos, player, hit);
 
         return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+    }
+
+    /**
+     * Maps a click on the pole to the base (rot-0) slot face it targets, or null for a vertical face.
+     * The hit point's angle around the pole centre picks the nearest of the four rotated slots, so a
+     * click on a cardinal face at a 45° rotation resolves to the intended diagonal slot.
+     */
+    private static Direction slotFaceFromHit(BlockPos pos, BlockHitResult hit, int rotation) {
+        return slotFaceFromClick(pos, hit.getDirection(), hit.getLocation(), rotation);
+    }
+
+    private static Direction slotFaceFromClick(BlockPos pos, Direction clickedFace, Vec3 loc, int rotation) {
+        int worldSlot = PoleRotation.slotFor(clickedFace, loc.x - pos.getX(), loc.z - pos.getZ(), rotation);
+        return worldSlot < 0 ? null : PoleRotation.baseCardinal(worldSlot, rotation);
+    }
+
+    /**
+     * The base face of the occupied connector a side-face wrench is pointing at, or null to fall through
+     * to a rotation. Picks the occupied slot whose (rotated) world direction is nearest the hit angle,
+     * within half a slot (45°), so clicking a connector always removes it — even at a 45° rotation where
+     * two diagonal slots flank the clicked face and a nearest-empty-slot check could miss the connector.
+     */
+    private static Direction connectorForClick(BlockPos pos, Direction clickedFace, Vec3 loc, UtilityPoleBlockEntity be) {
+        if (clickedFace.getAxis().isVertical())
+            return null; // wrenching the top rotates a connector pole (its escape hatch)
+        int rot = be.getRotation();
+        double clickDeg = Math.toDegrees(Math.atan2(loc.x - pos.getX() - 0.5, -(loc.z - pos.getZ() - 0.5)));
+        Direction best = null;
+        double bestDist = 45.0 + 1.0e-6; // within half the 90° slot spacing
+        for (Direction f : PoleConnectorGeometry.FACES) {
+            if (f.getAxis().isVertical() || be.getConnector(f) == PoleConnector.NONE)
+                continue;
+            double worldDeg = 45.0 * PoleRotation.wrap(PoleRotation.cardinalIndex(f) + rot);
+            double diff = Math.abs(clickDeg - worldDeg) % 360.0;
+            double dist = diff > 180.0 ? 360.0 - diff : diff;
+            if (dist < bestDist) {
+                bestDist = dist;
+                best = f;
+            }
+        }
+        return best;
     }
 
     private ItemInteractionResult applyCrossarm(UtilityPoleBlockEntity be, Level level, BlockPos pos,
                                                 Player player, ItemStack stack) {
         if (be.getMount() != PoleMount.NONE)
             return ItemInteractionResult.FAIL; // exclusive: clear the current mount first
-        Direction.Axis axis = player.getDirection().getClockWise().getAxis();
-        if (!canPlaceArms(level, pos, axis, 0))
+        // A crossarm orients along the pole's rotation. Respect a pole the player already turned; only a
+        // fresh, unlabeled pole snaps to face the player (crossarm perpendicular to their look, as before).
+        int rot = be.getRotation();
+        if (rot == 0 && !be.hasLabel())
+            rot = PoleRotation.cardinalIndex(player.getDirection().getClockWise());
+        if (!canPlaceArms(level, pos, rot, 0))
             return ItemInteractionResult.FAIL; // no room for the arm blocks
         if (!level.isClientSide) {
-            placeArms(level, pos, axis, 0, wood);
-            be.setCrossarm(axis, 0);
+            placeArms(level, pos, rot, 0, wood);
+            be.setRotation(rot);
+            be.setCrossarm(0);
+            applyDiagonalState(level, pos, rot);
             level.scheduleTick(pos, this, 1);
             level.playSound(null, pos, SoundEvents.WOOD_PLACE, SoundSource.BLOCKS, 1.0f, 1.0f);
             consume(player, stack);
@@ -234,15 +285,17 @@ public class UtilityPoleBlock extends RotatedPillarBlock
     }
 
     private ItemInteractionResult applyConnector(UtilityPoleBlockEntity be, Level level, BlockPos pos,
-                                                 Player player, ItemStack stack, Direction face, PoleConnector connector,
-                                                 Direction.Axis poleAxis) {
-        // Connectors mount only on the four faces perpendicular to the pole's axis (not its ends).
-        if (be.getMount() == PoleMount.CROSSARM || !PoleConnectorGeometry.isValidFace(poleAxis, face))
+                                                 Player player, ItemStack stack, BlockHitResult hit,
+                                                 PoleConnector connector) {
+        // Connectors mount only on the four side slots (not the pole's ends); the targeted slot is the
+        // rotated slot nearest the hit point, stored on its base face.
+        Direction slot = slotFaceFromHit(pos, hit, be.getRotation());
+        if (be.getMount() == PoleMount.CROSSARM || slot == null)
             return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
-        if (be.getConnector(face) != PoleConnector.NONE)
+        if (be.getConnector(slot) != PoleConnector.NONE)
             return ItemInteractionResult.FAIL;
         if (!level.isClientSide) {
-            be.setConnector(face, connector);
+            be.setConnector(slot, connector);
             level.scheduleTick(pos, this, 1);
             level.playSound(null, pos, SoundEvents.WOOD_PLACE, SoundSource.BLOCKS, 1.0f, 1.0f);
             consume(player, stack);
@@ -251,11 +304,13 @@ public class UtilityPoleBlock extends RotatedPillarBlock
     }
 
     /** Opens the label editor for a new (blank) label; the item is consumed on confirm, not here. */
-    private ItemInteractionResult applyLabel(Level level, BlockPos pos, Player player, Direction face) {
-        if (face.getAxis().isVertical())
+    private ItemInteractionResult applyLabel(UtilityPoleBlockEntity be, Level level, BlockPos pos,
+                                             Player player, BlockHitResult hit) {
+        Direction slot = slotFaceFromHit(pos, hit, be.getRotation());
+        if (slot == null)
             return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
         if (!level.isClientSide && player instanceof ServerPlayer sp)
-            PacketDistributor.sendToPlayer(sp, new OpenLabelEditorPayload(pos, face, ""));
+            PacketDistributor.sendToPlayer(sp, new OpenLabelEditorPayload(pos, slot, ""));
         return ItemInteractionResult.sidedSuccess(level.isClientSide);
     }
 
@@ -264,7 +319,7 @@ public class UtilityPoleBlock extends RotatedPillarBlock
             stack.shrink(1);
     }
 
-    // ---- wrench: cycle crossarm offset, or remove a connector ----
+    // ---- wrench: rotate the whole pole column; or (on a crossarm post body) cycle offset / pop a connector ----
 
     @Override
     public InteractionResult onWrenched(BlockState state, UseOnContext context) {
@@ -273,36 +328,29 @@ public class UtilityPoleBlock extends RotatedPillarBlock
         Direction face = context.getClickedFace();
 
         if (level.getBlockEntity(pos) instanceof UtilityPoleBlockEntity be) {
-            if (be.getMount() == PoleMount.CROSSARM) {
-                if (!level.isClientSide) {
-                    Direction.Axis axis = be.getCrossarmAxis();
-                    int next = be.getCrossarmOffset() >= 1 ? -1 : be.getCrossarmOffset() + 1;
-                    if (canPlaceArms(level, pos, axis, next)) {
-                        removeCrossarm(level, pos, false); // clears state + removes old arms (no drop)
-                        placeArms(level, pos, axis, next, wood);
-                        be.setCrossarm(axis, next);
+            // Wrenching a connector pops it; wrenching the pole itself rotates the whole column. Sliding
+            // the crossarm is done by wrenching an arm block instead (see CrossarmArmBlock.onWrenched).
+            if (be.getMount() == PoleMount.CONNECTORS) {
+                // A wrench that lands on a connector removes it (cancelling the rotation); only a click
+                // that isn't pointing at any connector falls through to rotate the column.
+                Direction slot = connectorForClick(pos, face, context.getClickLocation(), be);
+                if (slot != null) {
+                    if (!level.isClientSide && level instanceof ServerLevel) {
+                        PoleConnector connector = be.getConnector(slot);
+                        removeWiresByPlayer(context.getPlayer(), level, pos); // drops all pole wires (limitation)
+                        be.removeConnector(slot);
                         level.scheduleTick(pos, this, 1);
-                        level.playSound(null, pos, SoundEvents.ITEM_FRAME_ROTATE_ITEM, SoundSource.BLOCKS, 1.0f, 1.0f);
+                        if (connector.item() != null)
+                            popResource((ServerLevel) level, pos, new ItemStack(connector.item()));
+                        level.playSound(null, pos, SoundEvents.WOOD_BREAK, SoundSource.BLOCKS, 1.0f, 1.0f);
                     }
+                    return InteractionResult.sidedSuccess(level.isClientSide);
                 }
-                return InteractionResult.sidedSuccess(level.isClientSide);
             }
-            if (be.getMount() == PoleMount.CONNECTORS && !face.getAxis().isVertical()
-                    && be.getConnector(face) != PoleConnector.NONE) {
-                if (!level.isClientSide && level instanceof ServerLevel) {
-                    PoleConnector connector = be.getConnector(face);
-                    removeWiresByPlayer(context.getPlayer(), level, pos); // drops all pole wires (limitation)
-                    be.removeConnector(face);
-                    level.scheduleTick(pos, this, 1);
-                    if (connector.item() != null)
-                        popResource((ServerLevel) level, pos, new ItemStack(connector.item()));
-                    level.playSound(null, pos, SoundEvents.WOOD_BREAK, SoundSource.BLOCKS, 1.0f, 1.0f);
-                }
-                return InteractionResult.sidedSuccess(level.isClientSide);
-            }
+            if (!level.isClientSide)
+                rotatePole(level, pos, be);
+            return InteractionResult.sidedSuccess(level.isClientSide);
         }
-        // Deliberately not deferring to the default rotate: utility poles are vertical only, so a plain
-        // pole ignores the (non-sneak) wrench rather than being rotated onto its side.
         return InteractionResult.PASS;
     }
 
@@ -331,19 +379,20 @@ public class UtilityPoleBlock extends RotatedPillarBlock
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
         if (!(level.getBlockEntity(pos) instanceof UtilityPoleBlockEntity be))
             return InteractionResult.PASS;
-        Direction face = hit.getDirection();
+        // The clicked side maps to a base slot through the pole's rotation, matching how the label is stored.
+        Direction slot = slotFaceFromHit(pos, hit, be.getRotation());
 
         if (!player.isShiftKeyDown()) {
             // Plain (non-sneak) click on a labeled face re-opens the sign-style editor to change the text.
-            if (be.hasLabel() && be.getLabelFace() == face) {
+            if (be.hasLabel() && be.getLabelFace() == slot) {
                 if (!level.isClientSide && player instanceof ServerPlayer sp)
-                    PacketDistributor.sendToPlayer(sp, new OpenLabelEditorPayload(pos, face, be.getLabelText()));
+                    PacketDistributor.sendToPlayer(sp, new OpenLabelEditorPayload(pos, slot, be.getLabelText()));
                 return InteractionResult.sidedSuccess(level.isClientSide);
             }
             return InteractionResult.PASS;
         }
 
-        if (be.hasLabel() && be.getLabelFace() == face) {
+        if (be.hasLabel() && be.getLabelFace() == slot) {
             if (!level.isClientSide && level instanceof ServerLevel sl) {
                 be.clearLabel();
                 popResource(sl, pos, new ItemStack(EUItems.UTILITY_POLE_LABEL.get()));
@@ -452,16 +501,142 @@ public class UtilityPoleBlock extends RotatedPillarBlock
                 && abe.getPolePos().equals(polePos);
     }
 
-    /** True if the two arm slots for this axis/offset are free (or already our own arm blocks). */
-    private static boolean canPlaceArms(Level level, BlockPos polePos, Direction.Axis axis, int offset) {
-        for (BlockPos armPos : CrossarmGeometry.armPositions(polePos, axis, offset))
+    /**
+     * Rotates the whole vertical run of poles this one belongs to by one 45° step, rebuilding every
+     * crossarm's arms. All-or-nothing: if any crossarm in the column can't place its arms at the new
+     * rotation, nothing rotates (so the column never splits into mixed orientations).
+     */
+    private void rotatePole(Level level, BlockPos clickedPos, UtilityPoleBlockEntity clickedBe) {
+        int next = PoleRotation.wrap(clickedBe.getRotation() + 1);
+        List<BlockPos> column = poleColumn(level, clickedPos);
+        for (BlockPos p : column)
+            if (level.getBlockEntity(p) instanceof UtilityPoleBlockEntity be && be.getMount() == PoleMount.CROSSARM
+                    && !canPlaceArms(level, p, next, be.getCrossarmOffset()))
+                return; // a crossarm somewhere in the column is boxed in: rotate nothing
+        for (BlockPos p : column) {
+            if (!(level.getBlockEntity(p) instanceof UtilityPoleBlockEntity be))
+                continue;
+            if (be.getMount() == PoleMount.CROSSARM) {
+                WoodSet w = level.getBlockState(p).getBlock() instanceof UtilityPoleBlock pole ? pole.getWood() : wood;
+                // Keeps the offset; carries the side connectors' wires to their new cells.
+                rebuildCrossarm(level, p, be.getRotation(), be.getCrossarmOffset(), next, be.getCrossarmOffset(), w, be);
+            } else {
+                // Connectors/label live on the (unmoving) pole; re-registering repositions their wires.
+                be.setRotation(next);
+                applyDiagonalState(level, p, next);
+                level.scheduleTick(p, this, 1);
+            }
+        }
+        level.playSound(null, clickedPos, SoundEvents.ITEM_FRAME_ROTATE_ITEM, SoundSource.BLOCKS, 1.0f, 1.0f);
+    }
+
+    /** A wire lifted off a moving arm connector: which arm it was on, its far endpoint, and its data. */
+    private record MovedWire(int armIndex, InWorldNode far, WireData data) {}
+
+    /**
+     * Rebuilds a crossarm's two arm blocks at a new rotation/offset, carrying the side connectors' wires
+     * with them. EE keys a connection by node id + BlockPos, so moving the arm blocks would otherwise
+     * drop their wires; instead we lift every arm wire off first (no drops), rebuild, then reconnect it
+     * to the new arm node (remapping a far endpoint that is itself a moving arm, e.g. an inter-arm wire).
+     * The centre connector lives on the unmoving pole, so its wires follow on their own.
+     */
+    private void rebuildCrossarm(Level level, BlockPos pole, int oldRot, int oldOffset,
+                                 int newRot, int newOffset, WoodSet w, UtilityPoleBlockEntity be) {
+        List<BlockPos> oldArms = CrossarmGeometry.armPositions(pole, oldRot, oldOffset);
+        List<BlockPos> newArms = CrossarmGeometry.armPositions(pole, newRot, newOffset);
+
+        // 1. Capture + detach every wire on the old arm nodes (server only), remembering the far end.
+        List<MovedWire> moved = new ArrayList<>();
+        InfrastructureSavedData sd = level instanceof ServerLevel sl ? InfrastructureSavedData.load(sl) : null;
+        if (sd != null)
+            for (int i = 0; i < oldArms.size(); i++)
+                for (InWorldNodeData nd : new ArrayList<>(sd.getNodesAt(oldArms.get(i))))
+                    for (InWorldNodeConnection c : new ArrayList<>(sd.getConnections(nd))) {
+                        InWorldNode far = c.node1().equals(nd.node) ? c.node2() : c.node1();
+                        WireData wd = sd.removeConnectionNoDrops(c);
+                        if (wd != null)
+                            moved.add(new MovedWire(i, far, wd));
+                    }
+
+        // 2. Rebuild the arm blocks at the new positions (removeCrossarm uses the current/old state).
+        removeCrossarm(level, pole, false);
+        placeArms(level, pole, newRot, newOffset, w);
+        be.setRotation(newRot);
+        be.setCrossarm(newOffset);
+        applyDiagonalState(level, pole, newRot);
+        level.scheduleTick(pole, this, 1);
+
+        // 3. Register the new arm nodes (connect() throws on an unregistered or self node), then reconnect.
+        if (sd != null && !moved.isEmpty()) {
+            for (BlockPos armPos : newArms)
+                sd.registerOrUpdateNodes(armPos, List.of(0));
+            for (MovedWire m : moved) {
+                InWorldNode src = new InWorldNode(0, newArms.get(m.armIndex));
+                InWorldNode dst = remapArmEndpoint(m.far, oldArms, newArms);
+                if (!src.equals(dst))
+                    sd.connect(src, dst, m.data);
+            }
+        }
+    }
+
+    /**
+     * Slides the crossarm at {@code polePos} by one offset step, carrying the side connectors' wires.
+     * Invoked by wrenching an arm block ("wrench the extents to slide"); no-op if it can't fit.
+     */
+    public static void slideCrossarm(Level level, BlockPos polePos) {
+        if (!(level.getBlockState(polePos).getBlock() instanceof UtilityPoleBlock poleBlock)
+                || !(level.getBlockEntity(polePos) instanceof UtilityPoleBlockEntity be)
+                || be.getMount() != PoleMount.CROSSARM)
+            return;
+        int rot = be.getRotation();
+        int oldOffset = be.getCrossarmOffset();
+        int next = oldOffset >= 1 ? -1 : oldOffset + 1;
+        if (canPlaceArms(level, polePos, rot, next)) {
+            poleBlock.rebuildCrossarm(level, polePos, rot, oldOffset, rot, next, poleBlock.getWood(), be);
+            level.playSound(null, polePos, SoundEvents.ITEM_FRAME_ROTATE_ITEM, SoundSource.BLOCKS, 1.0f, 1.0f);
+        }
+    }
+
+    /** If a wire's far endpoint was one of the moving arm nodes, point it at that arm's new cell. */
+    private static InWorldNode remapArmEndpoint(InWorldNode far, List<BlockPos> oldArms, List<BlockPos> newArms) {
+        if (far.id() == 0)
+            for (int i = 0; i < oldArms.size(); i++)
+                if (far.sourcePos().equals(oldArms.get(i)))
+                    return new InWorldNode(0, newArms.get(i));
+        return far;
+    }
+
+    /** Every utility-pole block in the contiguous vertical run containing {@code pos}, bottom to top. */
+    private static List<BlockPos> poleColumn(Level level, BlockPos pos) {
+        BlockPos bottom = pos;
+        while (level.getBlockState(bottom.below()).getBlock() instanceof UtilityPoleBlock)
+            bottom = bottom.below();
+        List<BlockPos> column = new ArrayList<>();
+        for (BlockPos p = bottom; level.getBlockState(p).getBlock() instanceof UtilityPoleBlock; p = p.above())
+            column.add(p);
+        return column;
+    }
+
+    /** Mirrors a rotation's diagonal parity into the blockstate so the post renders square vs diamond. */
+    private static void applyDiagonalState(Level level, BlockPos pos, int rotation) {
+        BlockState cur = level.getBlockState(pos);
+        if (cur.getBlock() instanceof UtilityPoleBlock) {
+            boolean diagonal = PoleRotation.isDiagonal(rotation);
+            if (cur.getValue(DIAGONAL) != diagonal)
+                level.setBlock(pos, cur.setValue(DIAGONAL, diagonal), 3);
+        }
+    }
+
+    /** True if the two arm slots for this rotation/offset are free (or already our own arm blocks). */
+    private static boolean canPlaceArms(Level level, BlockPos polePos, int rotation, int offset) {
+        for (BlockPos armPos : CrossarmGeometry.armPositions(polePos, rotation, offset))
             if (!level.getBlockState(armPos).canBeReplaced() && !isOwnArm(level, armPos, polePos))
                 return false;
         return true;
     }
 
-    private static void placeArms(Level level, BlockPos polePos, Direction.Axis axis, int offset, WoodSet wood) {
-        for (BlockPos armPos : CrossarmGeometry.armPositions(polePos, axis, offset)) {
+    private static void placeArms(Level level, BlockPos polePos, int rotation, int offset, WoodSet wood) {
+        for (BlockPos armPos : CrossarmGeometry.armPositions(polePos, rotation, offset)) {
             level.setBlock(armPos, EUBlocks.CROSSARM_ARM.get().defaultBlockState(), 3);
             if (level.getBlockEntity(armPos) instanceof CrossarmArmBlockEntity abe)
                 abe.configure(wood, polePos);
@@ -475,10 +650,10 @@ public class UtilityPoleBlock extends RotatedPillarBlock
     public static void removeCrossarm(Level level, BlockPos polePos, boolean drop) {
         if (!(level.getBlockEntity(polePos) instanceof UtilityPoleBlockEntity be) || be.getMount() != PoleMount.CROSSARM)
             return;
-        Direction.Axis axis = be.getCrossarmAxis();
+        int rotation = be.getRotation();
         int offset = be.getCrossarmOffset();
         be.clearMount();
-        for (BlockPos armPos : CrossarmGeometry.armPositions(polePos, axis, offset))
+        for (BlockPos armPos : CrossarmGeometry.armPositions(polePos, rotation, offset))
             if (isOwnArm(level, armPos, polePos))
                 level.removeBlock(armPos, false);
         if (level.getBlockState(polePos).getBlock() instanceof UtilityPoleBlock poleBlock)
@@ -503,14 +678,18 @@ public class UtilityPoleBlock extends RotatedPillarBlock
             }
             case CONNECTORS -> {
                 Direction.Axis poleAxis = state.getValue(AXIS);
+                int rot = be.getRotation();
+                // Connectors are stored on their base (rot-0) face; their node id is rotation-independent,
+                // so wires stay attached — only the reported position rotates with the pole.
                 for (Direction face : PoleConnectorGeometry.FACES) {
                     PoleConnector connector = be.getConnector(face);
                     if (connector == PoleConnector.NONE)
                         continue;
                     double[] spreads = PoleConnectorGeometry.pinSpreads(connector.nodeCount());
-                    for (int pin = 0; pin < spreads.length; pin++)
-                        nodes.put(PoleConnectorGeometry.nodeId(face, pin),
-                                PoleConnectorGeometry.nodePosition(face, poleAxis, spreads[pin]));
+                    for (int pin = 0; pin < spreads.length; pin++) {
+                        Vec3 base = PoleConnectorGeometry.nodePosition(face, poleAxis, spreads[pin]);
+                        nodes.put(PoleConnectorGeometry.nodeId(face, pin), PoleRotation.rotateXZ(base, rot));
+                    }
                 }
             }
             default -> {}

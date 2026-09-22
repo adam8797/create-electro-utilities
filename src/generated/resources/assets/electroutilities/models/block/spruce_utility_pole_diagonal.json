@@ -1,0 +1,8 @@
+{
+  "parent": "electroutilities:block/utility_pole_post_diamond",
+  "textures": {
+    "end": "minecraft:block/spruce_log_top",
+    "particle": "minecraft:block/spruce_log",
+    "side": "minecraft:block/spruce_log"
+  }
+}

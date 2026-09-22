@@ -30,17 +30,15 @@ public class CrossarmArmRenderer implements BlockEntityRenderer<CrossarmArmBlock
         Minecraft mc = Minecraft.getInstance();
         BlockPos pole = be.getPolePos();
         BlockPos pos = be.getBlockPos();
-        boolean axisX = pole.getX() != pos.getX() || pole.getZ() == pos.getZ();
+        // The line direction from the pole to this arm gives the rotation to draw the beam along.
+        int rot = PoleRotation.fromDelta(pos.getX() - pole.getX(), pos.getZ() - pole.getZ());
+        if (rot < 0)
+            rot = 2; // not yet configured: fall back to E/W
 
         // Beam (solid) — render fully before switching buffers.
         TextureAtlasSprite sprite = RenderUtil.blockSprite(be.getWood().interiorSide());
         VertexConsumer solid = buffer.getBuffer(RenderType.solid());
-        double y1 = CrossarmGeometry.BEAM_Y1, y2 = CrossarmGeometry.BEAM_Y2;
-        double p1 = CrossarmGeometry.PERP1, p2 = CrossarmGeometry.PERP2;
-        if (axisX)
-            RenderUtil.cuboidTiled(poseStack, solid, sprite, 0.0, y1, p1, 1.0, y2, p2, packedLight, packedOverlay);
-        else
-            RenderUtil.cuboidTiled(poseStack, solid, sprite, p1, y1, 0.0, p2, y2, 1.0, packedLight, packedOverlay);
+        RenderUtil.crossarmBeam(poseStack, solid, sprite, rot, packedLight, packedOverlay);
 
         // Connector on top (cutout).
         BakedModel connector = mc.getModelManager().getModel(EUClient.CONNECTOR_MODEL);

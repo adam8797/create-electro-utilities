@@ -17,18 +17,20 @@ import net.minecraft.world.level.block.state.BlockState;
  * Holds all of a utility pole's mutable feature state:
  * <ul>
  *   <li>{@link #mount}: NONE / CROSSARM / CONNECTORS (mutually exclusive).</li>
- *   <li>crossarm axis ({@link Direction.Axis#X}/{@link Direction.Axis#Z}) and offset (-1/0/+1).</li>
- *   <li>per-face connectors (N/E/S/W), used when {@code mount == CONNECTORS}.</li>
- *   <li>a single label (text + face), independent of the mount.</li>
+ *   <li>{@link #rotation}: the whole-pole facing, 0..7 in 45° steps (see {@link PoleRotation}).</li>
+ *   <li>crossarm offset (-1/0/+1): where the pole sits within its 3-slot span.</li>
+ *   <li>per-slot connectors, stored by their base (rot-0) face N/E/S/W; used when {@code mount == CONNECTORS}.</li>
+ *   <li>a single label (text + base face), independent of the mount.</li>
  * </ul>
- * Synced to clients for rendering.
+ * Connectors and the label are stored in the pole's un-rotated frame; {@link #rotation} is applied as a
+ * transform for node positions and rendering. Synced to clients for rendering.
  */
 public class UtilityPoleBlockEntity extends BlockEntity implements LabelableBlockEntity {
 
     public static final int MAX_LABEL_LENGTH = 5;
 
     private PoleMount mount = PoleMount.NONE;
-    private Direction.Axis crossarmAxis = Direction.Axis.X;
+    private int rotation = 0; // 0..7, 45° clockwise steps (PoleRotation)
     private int crossarmOffset = 0; // -1, 0, +1
     // Indexed by Direction.get3DDataValue() (0..5); connectors only ever live on faces perpendicular
     // to the pole axis, but storing all six keeps indexing simple.
@@ -46,8 +48,8 @@ public class UtilityPoleBlockEntity extends BlockEntity implements LabelableBloc
         return mount;
     }
 
-    public Direction.Axis getCrossarmAxis() {
-        return crossarmAxis;
+    public int getRotation() {
+        return rotation;
     }
 
     public int getCrossarmOffset() {
@@ -81,14 +83,13 @@ public class UtilityPoleBlockEntity extends BlockEntity implements LabelableBloc
 
     // ---- mutators (server-side; each re-syncs) ----
 
-    public void setCrossarm(Direction.Axis axis, int offset) {
-        this.mount = PoleMount.CROSSARM;
-        this.crossarmAxis = axis;
-        this.crossarmOffset = Math.max(-1, Math.min(1, offset));
+    public void setRotation(int rotation) {
+        this.rotation = PoleRotation.wrap(rotation);
         sync();
     }
 
-    public void setCrossarmOffset(int offset) {
+    public void setCrossarm(int offset) {
+        this.mount = PoleMount.CROSSARM;
         this.crossarmOffset = Math.max(-1, Math.min(1, offset));
         sync();
     }
@@ -155,7 +156,7 @@ public class UtilityPoleBlockEntity extends BlockEntity implements LabelableBloc
     protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.saveAdditional(tag, registries);
         tag.putByte("Mount", (byte) mount.ordinal());
-        tag.putBoolean("CrossarmZ", crossarmAxis == Direction.Axis.Z);
+        tag.putByte("Rot", (byte) rotation);
         tag.putByte("CrossarmOffset", (byte) crossarmOffset);
         byte[] data = new byte[faces.length];
         for (int i = 0; i < faces.length; i++)
@@ -169,7 +170,14 @@ public class UtilityPoleBlockEntity extends BlockEntity implements LabelableBloc
     protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
         mount = PoleMount.byId(tag.getByte("Mount"));
-        crossarmAxis = tag.getBoolean("CrossarmZ") ? Direction.Axis.Z : Direction.Axis.X;
+        // Back-compat: older poles stored a crossarm axis (CrossarmZ) instead of a full rotation, and
+        // only for a crossarm. The old arms extended along positiveDir(axis) — X→EAST, Z→SOUTH — so
+        // migrate X to rotation 2 (East) and Z to rotation 4 (South); using North (0) for Z would flip
+        // the arm side for any offset≠0 crossarm and orphan its real arm blocks. Non-crossarm poles had
+        // no rotation (0), so their connectors/label keep their stored faces.
+        rotation = tag.contains("Rot")
+                ? PoleRotation.wrap(tag.getByte("Rot"))
+                : (mount == PoleMount.CROSSARM ? (tag.getBoolean("CrossarmZ") ? 4 : 2) : 0);
         crossarmOffset = tag.getByte("CrossarmOffset");
         byte[] data = tag.getByteArray("Connectors");
         for (int i = 0; i < faces.length; i++)

@@ -1,0 +1,22 @@
+{
+    "__comment": "8x8x16 utility pole post rotated 45° about Y, giving a diamond cross-section. Used for the pole's odd (45°) rotation steps. Textured via #side (bark) and #end (rings); parents block/block for standard GUI transforms.",
+    "parent": "minecraft:block/block",
+    "textures": {
+        "particle": "#side"
+    },
+    "elements": [
+        {
+            "from": [4, 0, 4],
+            "to": [12, 16, 12],
+            "rotation": { "origin": [8, 8, 8], "axis": "y", "angle": 45 },
+            "faces": {
+                "north": { "uv": [4, 0, 12, 16], "texture": "#side" },
+                "south": { "uv": [4, 0, 12, 16], "texture": "#side" },
+                "west":  { "uv": [4, 0, 12, 16], "texture": "#side" },
+                "east":  { "uv": [4, 0, 12, 16], "texture": "#side" },
+                "up":    { "uv": [4, 4, 12, 12], "texture": "#end" },
+                "down":  { "uv": [4, 4, 12, 12], "texture": "#end" }
+            }
+        }
+    ]
+}

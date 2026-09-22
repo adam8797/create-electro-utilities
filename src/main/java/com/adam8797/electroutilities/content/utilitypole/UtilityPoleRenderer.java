@@ -61,6 +61,12 @@ public class UtilityPoleRenderer implements BlockEntityRenderer<UtilityPoleBlock
     private void renderFaceConnectors(UtilityPoleBlockEntity be, BakedModel model, ModelBlockRenderer renderer,
                                       PoseStack poseStack, VertexConsumer vc, int light, int overlay) {
         Direction.Axis poleAxis = be.getBlockState().getValue(RotatedPillarBlock.AXIS);
+        // Connectors are stored on their base faces; rotate the whole frame about the pole's vertical
+        // centre so they ride the pole's rotation (matching the rotated node positions).
+        poseStack.pushPose();
+        poseStack.translate(0.5, 0.0, 0.5);
+        poseStack.mulPose(Axis.YP.rotationDegrees(-PoleRotation.degrees(be.getRotation()))); // clockwise
+        poseStack.translate(-0.5, 0.0, -0.5);
         for (Direction face : PoleConnectorGeometry.FACES) {
             PoleConnector connector = be.getConnector(face);
             if (connector == PoleConnector.NONE)
@@ -68,6 +74,7 @@ public class UtilityPoleRenderer implements BlockEntityRenderer<UtilityPoleBlock
             for (double spread : PoleConnectorGeometry.pinSpreads(connector.nodeCount()))
                 renderFaceConnector(model, renderer, poseStack, vc, light, overlay, face, poleAxis, spread);
         }
+        poseStack.popPose();
     }
 
     private void renderFaceConnector(BakedModel model, ModelBlockRenderer renderer, PoseStack poseStack,
@@ -101,16 +108,9 @@ public class UtilityPoleRenderer implements BlockEntityRenderer<UtilityPoleBlock
                                 PoseStack poseStack, MultiBufferSource buffer, int light, int overlay) {
         // The pole renders only its own slot: the beam segment across this block, and the centre
         // connector when it is the topmost block. The two side connectors are their own arm blocks.
-        Direction.Axis axis = be.getCrossarmAxis();
-        double y1 = CrossarmGeometry.BEAM_Y1, y2 = CrossarmGeometry.BEAM_Y2;
-        double p1 = CrossarmGeometry.PERP1, p2 = CrossarmGeometry.PERP2;
-
         TextureAtlasSprite sprite = interiorSprite(be);
         VertexConsumer solid = buffer.getBuffer(RenderType.solid());
-        if (axis == Direction.Axis.X)
-            RenderUtil.cuboidTiled(poseStack, solid, sprite, 0.0, y1, p1, 1.0, y2, p2, light, overlay);
-        else
-            RenderUtil.cuboidTiled(poseStack, solid, sprite, p1, y1, 0.0, p2, y2, 1.0, light, overlay);
+        RenderUtil.crossarmBeam(poseStack, solid, sprite, be.getRotation(), light, overlay);
 
         boolean top = be.getLevel() != null && UtilityPoleBlock.isCrossarmTop(be.getLevel(), be.getBlockPos());
         if (top) {
@@ -131,7 +131,14 @@ public class UtilityPoleRenderer implements BlockEntityRenderer<UtilityPoleBlock
     // ---- label ----
 
     private void renderLabel(UtilityPoleBlockEntity be, PoseStack poseStack, MultiBufferSource buffer, int light) {
+        // The label is stored on its base (rot-0) face; rotate the whole frame about the pole's vertical
+        // centre so it rides the pole's rotation (landing on a diamond face at the 45° steps).
+        poseStack.pushPose();
+        poseStack.translate(0.5, 0.0, 0.5);
+        poseStack.mulPose(Axis.YP.rotationDegrees(-PoleRotation.degrees(be.getRotation()))); // clockwise
+        poseStack.translate(-0.5, 0.0, -0.5);
         // 8x8 post: its face is 4/16 from the block centre, so the plate sits on the wood.
         LabelRenderer.render(font, poseStack, buffer, light, be.getLabelText(), be.getLabelFace(), 4.0f / 16.0f);
+        poseStack.popPose();
     }
 }

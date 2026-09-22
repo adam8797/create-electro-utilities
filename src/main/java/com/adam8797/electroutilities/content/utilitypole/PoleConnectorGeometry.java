@@ -22,11 +22,6 @@ public final class PoleConnectorGeometry {
     /** Node distance from block centre along the face normal (0.5 = block edge, stays clickable). */
     public static final double NODE_OUT = 0.5;
 
-    /** A face can host a connector only if it is perpendicular to the pole's axis. */
-    public static boolean isValidFace(Direction.Axis poleAxis, Direction face) {
-        return face.getAxis() != poleAxis;
-    }
-
     public static int faceIndex(Direction face) {
         return face.get3DDataValue(); // 0..5
     }

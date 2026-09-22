@@ -8,11 +8,15 @@ import com.adam8797.electroutilities.EUBlockEntityTypes;
 import com.adam8797.electroutilities.EUSimulatedDevices;
 import com.george_vi.electroenergetics.devices.device.SimulatedDeviceType;
 import com.george_vi.electroenergetics.foundation.base.SimpleElectricalDeviceBlock;
+import com.simibubi.create.content.equipment.wrench.IWrenchable;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelReader;
@@ -30,10 +34,39 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  * so it is independently wireable, and is rendered (beam + connector) by {@link CrossarmArmRenderer}
  * using its {@link CrossarmArmBlockEntity}. Breaking it, or its pole, tears down the whole crossarm.
  */
-public class CrossarmArmBlock extends SimpleElectricalDeviceBlock<UtilityPoleDevice> implements EntityBlock {
+public class CrossarmArmBlock extends SimpleElectricalDeviceBlock<UtilityPoleDevice> implements EntityBlock, IWrenchable {
 
     public CrossarmArmBlock(Properties properties) {
         super(properties);
+    }
+
+    // ---- wrench: an arm is the crossarm's "extent" — wrenching it slides the crossarm along its line ----
+
+    @Override
+    public InteractionResult onWrenched(BlockState state, UseOnContext context) {
+        Level level = context.getLevel();
+        if (level.getBlockEntity(context.getClickedPos()) instanceof CrossarmArmBlockEntity be) {
+            if (!level.isClientSide)
+                UtilityPoleBlock.slideCrossarm(level, be.getPolePos());
+            return InteractionResult.sidedSuccess(level.isClientSide);
+        }
+        return InteractionResult.PASS;
+    }
+
+    @Override
+    public InteractionResult onSneakWrenched(BlockState state, UseOnContext context) {
+        Level level = context.getLevel();
+        if (level.getBlockEntity(context.getClickedPos()) instanceof CrossarmArmBlockEntity be
+                && level.getBlockState(be.getPolePos()).getBlock() instanceof UtilityPoleBlock) {
+            if (!level.isClientSide) {
+                Player player = context.getPlayer();
+                removeWiresByPlayer(player, level, be.getPolePos());
+                UtilityPoleBlock.removeCrossarm(level, be.getPolePos(), player == null || !player.isCreative());
+                level.playSound(null, context.getClickedPos(), SoundEvents.WOOD_BREAK, SoundSource.BLOCKS, 1.0f, 1.0f);
+            }
+            return InteractionResult.sidedSuccess(level.isClientSide);
+        }
+        return super.onSneakWrenched(state, context);
     }
 
     // ---- EE device + node ----
@@ -64,22 +97,19 @@ public class CrossarmArmBlock extends SimpleElectricalDeviceBlock<UtilityPoleDev
 
     // ---- shape ----
 
-    private Direction.Axis axisAt(BlockGetter level, BlockPos pos) {
+    /** The rotation (line direction) from the owning pole to this arm, or -1 if not yet configured. */
+    private int rotationAt(BlockGetter level, BlockPos pos) {
         if (level.getBlockEntity(pos) instanceof CrossarmArmBlockEntity be) {
             BlockPos pole = be.getPolePos();
-            if (pole.getX() != pos.getX())
-                return Direction.Axis.X;
-            if (pole.getZ() != pos.getZ())
-                return Direction.Axis.Z;
+            return PoleRotation.fromDelta(pos.getX() - pole.getX(), pos.getZ() - pole.getZ());
         }
-        return Direction.Axis.X;
+        return -1;
     }
 
     @Override
     public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-        VoxelShape beam = axisAt(level, pos) == Direction.Axis.X
-                ? Block.box(0, 11, 6, 16, 15, 10)
-                : Block.box(6, 11, 0, 10, 15, 16);
+        int rot = rotationAt(level, pos);
+        VoxelShape beam = CrossarmGeometry.beamOutline(rot < 0 ? 2 : rot); // rot 2 = E/W fallback
         // beam + connector: the box tracks the rendered connector (x/z 5-11, y 15-25), poking above
         // the block so the insulator itself is clickable, not just the wood.
         return Shapes.or(beam, Block.box(5, 15, 5, 11, 25, 11));

@@ -1,15 +1,51 @@
 {
   "variants": {
-    "axis=x": {
+    "axis=x,diagonal=false,waterlogged=false": {
       "model": "electroutilities:block/warped_utility_pole",
       "x": 90,
       "y": 90
     },
-    "axis=y": {
+    "axis=x,diagonal=false,waterlogged=true": {
+      "model": "electroutilities:block/warped_utility_pole",
+      "x": 90,
+      "y": 90
+    },
+    "axis=x,diagonal=true,waterlogged=false": {
+      "model": "electroutilities:block/warped_utility_pole_diagonal",
+      "x": 90,
+      "y": 90
+    },
+    "axis=x,diagonal=true,waterlogged=true": {
+      "model": "electroutilities:block/warped_utility_pole_diagonal",
+      "x": 90,
+      "y": 90
+    },
+    "axis=y,diagonal=false,waterlogged=false": {
       "model": "electroutilities:block/warped_utility_pole"
     },
-    "axis=z": {
+    "axis=y,diagonal=false,waterlogged=true": {
+      "model": "electroutilities:block/warped_utility_pole"
+    },
+    "axis=y,diagonal=true,waterlogged=false": {
+      "model": "electroutilities:block/warped_utility_pole_diagonal"
+    },
+    "axis=y,diagonal=true,waterlogged=true": {
+      "model": "electroutilities:block/warped_utility_pole_diagonal"
+    },
+    "axis=z,diagonal=false,waterlogged=false": {
       "model": "electroutilities:block/warped_utility_pole",
+      "x": 90
+    },
+    "axis=z,diagonal=false,waterlogged=true": {
+      "model": "electroutilities:block/warped_utility_pole",
+      "x": 90
+    },
+    "axis=z,diagonal=true,waterlogged=false": {
+      "model": "electroutilities:block/warped_utility_pole_diagonal",
+      "x": 90
+    },
+    "axis=z,diagonal=true,waterlogged=true": {
+      "model": "electroutilities:block/warped_utility_pole_diagonal",
       "x": 90
     }
   }

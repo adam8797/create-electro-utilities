@@ -12,9 +12,11 @@ import com.adam8797.electroutilities.content.utilitypole.UtilityPoleBlock;
 import com.adam8797.electroutilities.content.utilitypole.WoodSet;
 import com.tterrag.registrate.util.entry.BlockEntry;
 
+import net.minecraft.core.Direction;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.RotatedPillarBlock;
+import net.neoforged.neoforge.client.model.generators.ConfiguredModel;
 
 /**
  * Central registry holder for all blocks. The utility pole is the only block; all features (crossarm,
@@ -54,12 +56,24 @@ public class EUBlocks {
                 .properties(p -> p.mapColor(wood.mapColor()))
                 .tag(BlockTags.MINEABLE_WITH_AXE)
                 .blockstate((c, p) -> {
-                    var model = p.models()
+                    var square = p.models()
                             .withExistingParent(c.getName(), CreateElectroUtilities.rl("block/utility_pole_post"))
                             .texture("side", wood.exteriorSide())
                             .texture("end", wood.exteriorEnd())
                             .texture("particle", wood.exteriorSide());
-                    p.axisBlock((RotatedPillarBlock) c.get(), model, model);
+                    // Odd (45°) rotations render the post as a diamond; even ones keep the square post.
+                    var diamond = p.models()
+                            .withExistingParent(c.getName() + "_diagonal", CreateElectroUtilities.rl("block/utility_pole_post_diamond"))
+                            .texture("side", wood.exteriorSide())
+                            .texture("end", wood.exteriorEnd())
+                            .texture("particle", wood.exteriorSide());
+                    p.getVariantBuilder(c.get()).forAllStates(state -> {
+                        var model = state.getValue(UtilityPoleBlock.DIAGONAL) ? diamond : square;
+                        Direction.Axis axis = state.getValue(RotatedPillarBlock.AXIS);
+                        int rotX = axis == Direction.Axis.Y ? 0 : 90;
+                        int rotY = axis == Direction.Axis.X ? 90 : 0;
+                        return ConfiguredModel.builder().modelFile(model).rotationX(rotX).rotationY(rotY).build();
+                    });
                 })
                 .item()
                 .model((c, p) -> p.withExistingParent(c.getName(), CreateElectroUtilities.rl("block/" + c.getName())))

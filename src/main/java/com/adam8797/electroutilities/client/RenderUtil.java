@@ -1,7 +1,10 @@
 package com.adam8797.electroutilities.client;
 
+import com.adam8797.electroutilities.content.utilitypole.CrossarmGeometry;
+import com.adam8797.electroutilities.content.utilitypole.PoleRotation;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.math.Axis;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.TextureAtlas;
@@ -15,6 +18,31 @@ public final class RenderUtil {
 
     public static TextureAtlasSprite blockSprite(ResourceLocation texture) {
         return Minecraft.getInstance().getTextureAtlas(TextureAtlas.LOCATION_BLOCKS).apply(texture);
+    }
+
+    /**
+     * Draws the crossarm beam across a single block, oriented along the pole {@link PoleRotation}. The
+     * beam is authored along the base N/S line and rotated clockwise; diagonal orientations extend it to
+     * the block's diagonal (length √2) so it reaches the diagonal neighbour cells.
+     */
+    public static void crossarmBeam(PoseStack poseStack, VertexConsumer vc, TextureAtlasSprite sprite,
+                                    int rotation, int light, int overlay) {
+        double y1 = CrossarmGeometry.BEAM_Y1, y2 = CrossarmGeometry.BEAM_Y2;
+        double p1 = CrossarmGeometry.PERP1, p2 = CrossarmGeometry.PERP2;
+        boolean diagonal = PoleRotation.isDiagonal(rotation);
+        poseStack.pushPose();
+        poseStack.translate(0.5, 0.0, 0.5);
+        poseStack.mulPose(Axis.YP.rotationDegrees(-PoleRotation.degrees(rotation))); // clockwise from above
+        poseStack.translate(-0.5, 0.0, -0.5);
+        if (diagonal) {
+            // The beam runs the block's diagonal (length √2 > 1); tiled UVs would sample past the sprite
+            // tile and tear, so map the full sprite onto each face (slight grain stretch, no gaps).
+            double ext = (Math.sqrt(2.0) - 1.0) / 2.0;
+            cuboid(poseStack, vc, sprite, p1, y1, -ext, p2, y2, 1.0 + ext, light, overlay);
+        } else {
+            cuboidTiled(poseStack, vc, sprite, p1, y1, 0.0, p2, y2, 1.0, light, overlay);
+        }
+        poseStack.popPose();
     }
 
     /**

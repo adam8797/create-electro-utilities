@@ -57,14 +57,20 @@ public class CreateElectroUtilities {
      */
     private static void registerPonderLang() {
         ponder("utility_pole", "Routing wires with Utility Poles",
-                "Utility poles are crafted from logs treated with Transformer Oil, then placed like shafts.",
+                "Utility poles are crafted from logs treated with Transformer Oil, then placed like a log.",
                 "Aim at a pole's top or bottom and use another pole to extend the column vertically.",
                 "Use a connector, crossarm, or label item on the pole to add wiring attachments.",
-                "Each face is wired independently — add a connector per face as needed.");
+                "Each face is wired independently — add a connector per face as needed.",
+                "Wrench the pole itself to turn the whole column in 45° steps — the connectors turn with it.",
+                "At 45° the square post reads as a diamond, and its connectors swing round to the new facing.",
+                "Another step squares it up again, the connectors now facing a new direction.");
         ponder("crossarm", "The Crossarm",
                 "The crossarm is crafted from three connectors over a row of planks.",
                 "Use it on a utility pole to span three blocks, giving three independently wireable connectors.",
-                "A wrench shifts the crossarm's offset — which slots the arms occupy along the pole.",
+                "Wrench an arm block to slide the crossarm's offset — which slots the arms occupy along the pole.",
+                "Wrench the pole itself instead, and the whole crossarm turns with it in 45° steps.",
+                "The arms swing onto the diagonal and the post reads as a diamond — any wires ride along.",
+                "Every pole in the column turns together, keeping a whole stacked run aligned.",
                 "Stacking another pole on top covers the crossarm's centre connector, leaving the two arm nodes.",
                 "Sneak-wrench removes the whole crossarm.");
         ponder("substation_pole", "Substation Poles",

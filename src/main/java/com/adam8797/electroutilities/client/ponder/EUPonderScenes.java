@@ -5,6 +5,8 @@ import com.adam8797.electroutilities.EUItems;
 import com.adam8797.electroutilities.content.substation.SubstationPoleBlockEntity;
 import com.adam8797.electroutilities.content.utilitypole.CrossarmArmBlockEntity;
 import com.adam8797.electroutilities.content.utilitypole.PoleConnector;
+import com.adam8797.electroutilities.content.utilitypole.PoleRotation;
+import com.adam8797.electroutilities.content.utilitypole.UtilityPoleBlock;
 import com.adam8797.electroutilities.content.utilitypole.UtilityPoleBlockEntity;
 import com.adam8797.electroutilities.content.utilitypole.WoodSet;
 import com.george_vi.electroenergetics.content.transmission_distribution.hv_switch.HVSwitchBlockEntity;
@@ -87,7 +89,54 @@ public final class EUPonderScenes {
                 .placeNearTarget()
                 .pointAt(util.vector().blockSurface(poleMid, Direction.WEST));
         scene.idle(80);
+
+        // Whole-pole rotation: wrenching the pole itself turns the entire column in 45° steps, carrying
+        // every attachment with it. The column here is the three pole blocks at y=1..3.
+        BlockPos poleBase = util.grid().at(2, 1, 2);
+        BlockPos[] column = { poleTop, poleMid, poleBase };
+
+        scene.overlay().showText(80)
+                .colored(PonderPalette.BLUE)
+                .text("Wrench the pole itself to turn the whole column in 45° steps — the connectors turn with it.")
+                .placeNearTarget()
+                .pointAt(util.vector().topOf(poleTop))
+                .attachKeyFrame();
+        scene.idle(90);
+
+        scene.overlay().showControls(util.vector().topOf(poleTop), Pointing.DOWN, 20)
+                .withItem(AllItems.WRENCH.asStack())
+                .rightClick();
+        scene.idle(7);
+        rotatePoleColumn(scene, column, 1); // 0 -> 1: a 45° step, so the square post now reads as a diamond
+        scene.idle(25);
+        scene.overlay().showText(80)
+                .text("At 45° the square post reads as a diamond, and its connectors swing round to the new facing.")
+                .placeNearTarget()
+                .pointAt(util.vector().topOf(poleMid))
+                .attachKeyFrame();
+        scene.idle(90);
+
+        scene.overlay().showControls(util.vector().topOf(poleTop), Pointing.DOWN, 20)
+                .withItem(AllItems.WRENCH.asStack())
+                .rightClick();
+        scene.idle(7);
+        rotatePoleColumn(scene, column, 2); // 1 -> 2: squares back up, now facing a new direction
+        scene.idle(25);
+        scene.overlay().showText(70)
+                .text("Another step squares it up again, the connectors now facing a new direction.")
+                .placeNearTarget()
+                .pointAt(util.vector().topOf(poleMid));
+        scene.idle(80);
         scene.markAsFinished();
+    }
+
+    /** Turns a whole ponder pole column to a rotation index: each block's rotation and its diamond state. */
+    private static void rotatePoleColumn(SceneBuilder scene, BlockPos[] column, int rotation) {
+        boolean diagonal = PoleRotation.isDiagonal(rotation);
+        for (BlockPos p : column) {
+            scene.world().modifyBlockEntity(p, UtilityPoleBlockEntity.class, be -> be.setRotation(rotation));
+            scene.world().modifyBlock(p, bs -> bs.setValue(UtilityPoleBlock.DIAGONAL, diagonal), false);
+        }
     }
 
     /** Schematic: a 5x5 plate with a utility pole that has a crossarm applied across the top. */
@@ -123,15 +172,16 @@ public final class EUPonderScenes {
                 .attachKeyFrame();
         scene.idle(90);
 
-        // Wrench cycles the offset: which slots the two arms occupy along the pole. Safe to setBlock here —
-        // CrossarmArmBlock.onRemove's teardown is server-gated, and ponder worlds are client-side.
+        // Two separate wrench gestures: wrenching an ARM block slides the offset; wrenching the POLE
+        // rotates the whole crossarm (below). Safe to setBlock here — CrossarmArmBlock.onRemove's
+        // teardown is server-gated, and ponder worlds are client-side.
         BlockState arm = EUBlocks.CROSSARM_ARM.get().defaultBlockState();
         BlockState air = Blocks.AIR.defaultBlockState();
         BlockPos armLeft = util.grid().at(1, 3, 2);
         BlockPos armRight = util.grid().at(3, 3, 2);
         BlockPos armFar = util.grid().at(4, 3, 2);
 
-        scene.overlay().showControls(util.vector().topOf(armTop), Pointing.DOWN, 20)
+        scene.overlay().showControls(util.vector().topOf(armRight), Pointing.DOWN, 20)
                 .withItem(AllItems.WRENCH.asStack())
                 .rightClick();
         scene.idle(7);
@@ -141,13 +191,13 @@ public final class EUPonderScenes {
         scene.world().modifyBlockEntity(armFar, CrossarmArmBlockEntity.class, be -> be.configure(WoodSet.OAK, armTop));
         scene.idle(20);
         scene.overlay().showText(80)
-                .text("A wrench shifts the crossarm's offset — which slots the arms occupy along the pole.")
+                .text("Wrench an arm block to slide the crossarm's offset — which slots the arms occupy along the pole.")
                 .placeNearTarget()
-                .pointAt(util.vector().topOf(armRight))
+                .pointAt(util.vector().topOf(armFar))
                 .attachKeyFrame();
         scene.idle(90);
         // Back to centre.
-        scene.overlay().showControls(util.vector().topOf(armTop), Pointing.DOWN, 20)
+        scene.overlay().showControls(util.vector().topOf(armFar), Pointing.DOWN, 20)
                 .withItem(AllItems.WRENCH.asStack())
                 .rightClick();
         scene.idle(7);
@@ -155,6 +205,61 @@ public final class EUPonderScenes {
         scene.world().setBlock(armLeft, arm, false);
         scene.world().modifyBlockEntity(armLeft, CrossarmArmBlockEntity.class, be -> be.configure(WoodSet.OAK, armTop));
         scene.idle(25);
+
+        // Whole-crossarm rotation: wrenching the POLE (not an arm) turns the entire crossarm 45° per step.
+        // The two arm blocks move to the new rotation's cells; the pole stays put and becomes a diamond.
+        BlockPos[] column = { armTop, util.grid().at(2, 2, 2), util.grid().at(2, 1, 2) };
+        BlockPos diagA = util.grid().at(1, 3, 1); // rotation 3 (diagonal) arm cells
+        BlockPos diagB = util.grid().at(3, 3, 3);
+        BlockPos armNorth = util.grid().at(2, 3, 1); // rotation 4 (perpendicular axis) arm cells
+        BlockPos armSouth = util.grid().at(2, 3, 3);
+
+        scene.overlay().showText(80)
+                .colored(PonderPalette.BLUE)
+                .text("Wrench the pole itself instead, and the whole crossarm turns with it in 45° steps.")
+                .placeNearTarget()
+                .pointAt(util.vector().topOf(armTop))
+                .attachKeyFrame();
+        scene.idle(90);
+
+        scene.overlay().showControls(util.vector().topOf(armTop), Pointing.DOWN, 20)
+                .withItem(AllItems.WRENCH.asStack())
+                .rightClick();
+        scene.idle(7);
+        // Swing onto the diagonal: arms move to the diagonal neighbour cells and the post becomes a diamond.
+        scene.world().setBlock(armLeft, air, false);
+        scene.world().setBlock(armRight, air, false);
+        scene.world().setBlock(diagA, arm, false);
+        scene.world().setBlock(diagB, arm, false);
+        scene.world().modifyBlockEntity(diagA, CrossarmArmBlockEntity.class, be -> be.configure(WoodSet.OAK, armTop));
+        scene.world().modifyBlockEntity(diagB, CrossarmArmBlockEntity.class, be -> be.configure(WoodSet.OAK, armTop));
+        rotatePoleColumn(scene, column, 3);
+        scene.idle(25);
+        scene.overlay().showText(80)
+                .text("The arms swing onto the diagonal and the post reads as a diamond — any wires ride along.")
+                .placeNearTarget()
+                .pointAt(util.vector().topOf(diagB))
+                .attachKeyFrame();
+        scene.idle(90);
+
+        // Another step squares it back up on the perpendicular axis.
+        scene.overlay().showControls(util.vector().topOf(armTop), Pointing.DOWN, 20)
+                .withItem(AllItems.WRENCH.asStack())
+                .rightClick();
+        scene.idle(7);
+        scene.world().setBlock(diagA, air, false);
+        scene.world().setBlock(diagB, air, false);
+        scene.world().setBlock(armNorth, arm, false);
+        scene.world().setBlock(armSouth, arm, false);
+        scene.world().modifyBlockEntity(armNorth, CrossarmArmBlockEntity.class, be -> be.configure(WoodSet.OAK, armTop));
+        scene.world().modifyBlockEntity(armSouth, CrossarmArmBlockEntity.class, be -> be.configure(WoodSet.OAK, armTop));
+        rotatePoleColumn(scene, column, 4);
+        scene.idle(25);
+        scene.overlay().showText(70)
+                .text("Every pole in the column turns together, keeping a whole stacked run aligned.")
+                .placeNearTarget()
+                .pointAt(util.vector().topOf(armTop));
+        scene.idle(80);
 
         // Stacking a pole on top removes the centre connector (only a pole above triggers isCrossarmTop).
         BlockState pole = EUBlocks.UTILITY_POLES.get(WoodSet.OAK).get().defaultBlockState();
@@ -225,10 +330,20 @@ public final class EUPonderScenes {
         scene.markAsFinished();
     }
 
-    /** Schematic (labels.nbt, 5x5): a substation pole at column (1,2) and a utility pole at column (3,2). */
+    /**
+     * Schematic (labels.nbt, 5x5): a substation pole at column (1,2) and a utility pole at column (3,2)
+     * that is topped with a crossarm (pole (3,4,2), arm blocks at (2,4,2) and (4,4,2)).
+     */
     public static void label(SceneBuilder scene, SceneBuildingUtil util) {
         scene.title("labels", "Labelling Poles");
         scene.configureBasePlate(0, 0, 5);
+        // The utility pole's crossarm arm blocks bake an absolute pole position into the schematic; re-point
+        // them at this scene's pole BEFORE they are revealed, or they render on a stale (diagonal) axis.
+        BlockPos crossarmPole = util.grid().at(3, 4, 2);
+        scene.world().modifyBlockEntity(util.grid().at(2, 4, 2), CrossarmArmBlockEntity.class,
+                be -> be.configure(WoodSet.OAK, crossarmPole));
+        scene.world().modifyBlockEntity(util.grid().at(4, 4, 2), CrossarmArmBlockEntity.class,
+                be -> be.configure(WoodSet.OAK, crossarmPole));
         scene.showBasePlate();
         scene.idle(10);
         scene.world().showSection(util.select().layersFrom(1), Direction.UP);
